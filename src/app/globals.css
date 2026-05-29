@@ -1,0 +1,467 @@
+/* Base UI fonts are loaded via next/font/google in app/layout.tsx — they
+   are statically optimized, self-hosted, and preloaded into <head>. The
+   emergent per-emotion fonts arrive via <link rel="stylesheet"> on each
+   detail page, requesting ONLY the 4 fonts that page's typeset assigns.
+   The catalogue can grow without ever touching the per-user load cost. */
+
+/* ─── Material Symbols Outlined ──────────────────────────────────────────
+   Apply with className="icon" or className="icon icon-sm/icon-lg" and put
+   the icon name as text content: <span className="icon">palette</span>. */
+.icon {
+  font-family: "Material Symbols Outlined", sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+  vertical-align: middle;
+}
+.icon-sm  { font-size: 16px; }
+.icon-md  { font-size: 20px; }
+.icon-lg  { font-size: 24px; }
+.icon-xl  { font-size: 32px; }
+.icon-fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Dual-theme palette: Crepúsculo (dusk, dark) y Alba (dawn, light)
+   The two share the same emotional/contemplative character; one is night,
+   the other is parchment. The :root defaults to dusk; data-theme="dawn"
+   on <html> swaps in the warm-paper palette.
+   ──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ─── Dusk (dark, default) ────────────────────────────────────────── */
+  --album-void:           #050508;
+  --album-deep:           #0D0D14;
+  --album-surface:        #141420;
+  --album-raised:         #1C1C2D;
+
+  --album-ink:            #F0EDE8;
+  --album-ink-muted:      #8A8799;
+  --album-ink-faint:      #4A4760;
+
+  /* RGB triplets so we can compose translucent surfaces */
+  --album-ink-rgb:        255 255 255;   /* used for white-over-X overlays */
+  --album-bg-rgb:         5 5 8;
+  /* The actual ink/muted/faint colors, broken into RGB so Tailwind opacity utilities can swap */
+  --album-ink-actual-rgb:    240 237 232;  /* #F0EDE8 */
+  --album-ink-muted-rgb:     138 135 153;  /* #8A8799 */
+  --album-ink-faint-rgb:     74 71 96;     /* #4A4760 */
+  --album-amber-rgb:         200 147 90;   /* #C8935A */
+
+  --album-border:         rgba(255, 255, 255, 0.06);
+  --album-border-strong:  rgba(255, 255, 255, 0.12);
+
+  --album-glass-bg:       rgba(20, 20, 32, 0.7);
+  --album-glass-strong-bg:rgba(28, 28, 45, 0.85);
+  --album-glass-border:   rgba(255, 255, 255, 0.06);
+
+  --album-scrollbar:      rgba(255, 255, 255, 0.12);
+  --album-scrollbar-hover:rgba(255, 255, 255, 0.22);
+
+  --album-selection:      rgba(200, 147, 90, 0.28);
+
+  /* Atmospheric ambient gradients (deep blue night) */
+  --album-atmospheric-1:  rgba(74, 111, 165, 0.08);  /* perdida blue echo */
+  --album-atmospheric-2:  rgba(74,  74, 120, 0.06);  /* deep violet echo */
+  --album-atmospheric-center-1: rgba(13, 13, 20, 1);
+  --album-atmospheric-center-2: rgba(5, 5, 8, 1);
+
+  --album-amber:          #C8935A;
+  --album-amber-bright:   #E8A86A;
+
+  /* Typography (theme-independent) */
+  --font-display:   'Cormorant Garamond', Georgia, serif;
+  --font-body:      'Inter', system-ui, sans-serif;
+  --font-editorial: 'Playfair Display', Georgia, serif;
+  --font-literary:  'EB Garamond', Georgia, serif;
+  --font-technical: 'Space Grotesk', system-ui, sans-serif;
+}
+
+:root[data-theme="dawn"] {
+  /* ─── Alba (dawn, light) — warm parchment / aged paper ────────────── */
+  --album-void:           #F2EBDC;   /* aged paper base */
+  --album-deep:           #ECE3D0;   /* deeper parchment */
+  --album-surface:        #F7F1E2;   /* surface paper */
+  --album-raised:         #FFFAEF;   /* white-cream */
+
+  --album-ink:            #2C2418;   /* deep coffee ink */
+  --album-ink-muted:      #6E6244;   /* warm muted brown */
+  --album-ink-faint:      #B5AB94;   /* faint warm gray */
+
+  --album-ink-rgb:        44 36 24;
+  --album-bg-rgb:         242 235 220;
+  --album-ink-actual-rgb:    44 36 24;     /* #2C2418 */
+  --album-ink-muted-rgb:     110 98 68;    /* #6E6244 */
+  --album-ink-faint-rgb:     181 171 148;  /* #B5AB94 */
+  --album-amber-rgb:         180 130 80;   /* #B48250 — slightly deeper amber on paper */
+
+  --album-border:         rgba(44, 36, 24, 0.08);
+  --album-border-strong:  rgba(44, 36, 24, 0.16);
+
+  --album-glass-bg:       rgba(255, 250, 239, 0.7);
+  --album-glass-strong-bg:rgba(255, 250, 239, 0.9);
+  --album-glass-border:   rgba(44, 36, 24, 0.08);
+
+  --album-scrollbar:      rgba(44, 36, 24, 0.14);
+  --album-scrollbar-hover:rgba(44, 36, 24, 0.28);
+
+  --album-selection:      rgba(200, 147, 90, 0.32);
+
+  /* Soft, warm atmospheric gradients (dawn sky) */
+  --album-atmospheric-1:  rgba(200, 147, 90, 0.10);  /* warm amber wash */
+  --album-atmospheric-2:  rgba(181,  96, 122, 0.06); /* soft rose */
+  --album-atmospheric-center-1: rgba(247, 241, 226, 1);
+  --album-atmospheric-center-2: rgba(242, 235, 220, 1);
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  color-scheme: dark;
+  transition: color 0.4s ease, background-color 0.4s ease;
+}
+
+html[data-theme="dawn"] {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--album-void);
+  color: var(--album-ink);
+  font-family: var(--font-body);
+  font-weight: 300;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: color 0.4s ease, background-color 0.4s ease;
+}
+
+/* Custom scrollbar — theme-aware */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--album-scrollbar);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--album-scrollbar-hover);
+}
+
+/* Typography system */
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.text-editorial {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.text-literary {
+  font-family: var(--font-literary);
+  font-weight: 400;
+  line-height: 1.65;
+}
+
+.text-technical {
+  font-family: var(--font-technical);
+  font-weight: 300;
+  letter-spacing: 0.01em;
+}
+
+/* Atmospheric gradients */
+.bg-atmospheric {
+  background:
+    radial-gradient(ellipse at 20% 20%, var(--album-atmospheric-1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, var(--album-atmospheric-2) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, var(--album-atmospheric-center-1) 0%, var(--album-atmospheric-center-2) 100%);
+}
+
+.bg-atmospheric-warm {
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(200, 147, 90, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 70%, rgba(181, 96, 122, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, var(--album-atmospheric-center-1) 0%, var(--album-atmospheric-center-2) 100%);
+}
+
+/* Glass surfaces */
+.glass {
+  background: var(--album-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--album-glass-border);
+}
+
+.glass-strong {
+  background: var(--album-glass-strong-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--album-glass-border);
+}
+
+/* Resonance node bloom */
+@keyframes bloom {
+  0% { box-shadow: 0 0 0 0 currentColor; opacity: 0.8; }
+  50% { box-shadow: 0 0 40px 12px currentColor; opacity: 0.4; }
+  100% { box-shadow: 0 0 0 0 currentColor; opacity: 0.8; }
+}
+
+@keyframes semantic-pulse {
+  0%, 100% { stroke-opacity: 0.15; }
+  50% { stroke-opacity: 0.45; }
+}
+
+@keyframes ambient-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, -15px) scale(1.02); }
+  66% { transform: translate(-10px, 20px) scale(0.98); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Motion-pattern breathing ────────────────────────────────────────────
+   Period comes from --em-pace, set per emotion/clan/tribe/colour by the
+   motion catalogue. Dramatic so a fast pace (jitter, 800ms) reads as a
+   visible pulse and a slow pace (respiración honda, 5400ms) reads as a
+   long inhale that you can SEE expanding. */
+@keyframes em-breath {
+  0%, 100% { opacity: 0.55; transform: scale(0.92); }
+  50%      { opacity: 1;    transform: scale(1.06); }
+}
+
+/* Light breathing: same period, smaller amplitude. For body text. */
+@keyframes em-breath-soft {
+  0%, 100% { opacity: 0.75; transform: scale(0.98); }
+  50%      { opacity: 1;    transform: scale(1.02); }
+}
+
+/* Glow that expands and contracts with the page's rhythm. */
+@keyframes em-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50%      { filter: drop-shadow(0 0 24px currentColor); }
+}
+
+/* Ambient drift — large amplitude so it's actually perceivable. Used by
+   atmospheric / texture layers. */
+@keyframes em-drift {
+  0%, 100% { transform: translate(0, 0)        scale(1); }
+  33%      { transform: translate(28px, -22px) scale(1.04); }
+  66%      { transform: translate(-22px, 18px) scale(0.97); }
+}
+
+/* Fast lateral micro-tremor for jitter-class patterns. */
+@keyframes em-tremor {
+  0%, 100% { transform: translate(0, 0); }
+  20%      { transform: translate(-2px, 1px); }
+  40%      { transform: translate(2px, -1px); }
+  60%      { transform: translate(-1px, 2px); }
+  80%      { transform: translate(1px, -2px); }
+}
+
+/* ── Map pulse-wave ──────────────────────────────────────────────────────
+   Lower-amplitude breath intended for the ~1300 map node halos. Combined
+   with a per-node animation-delay derived from spatial position, 72
+   simultaneous pulses read as a SINGLE WAVE swelling across the map
+   rather than 72 independent jitters. */
+@keyframes em-pulse-wave {
+  0%, 100% { opacity: 0.55; transform: scale(0.85); }
+  50%      { opacity: 1;    transform: scale(1.15);  }
+}
+
+@keyframes constellation-reveal {
+  from { opacity: 0; stroke-dashoffset: 100; }
+  to { opacity: 1; stroke-dashoffset: 0; }
+}
+
+.animate-bloom { animation: bloom 3s ease-in-out infinite; }
+.animate-drift { animation: ambient-drift 20s ease-in-out infinite; }
+.animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Selection */
+::selection {
+  background: var(--album-selection);
+  color: var(--album-ink);
+}
+
+/* Focus */
+:focus-visible {
+  outline: 1px solid rgba(200, 147, 90, 0.5);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Links */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Smooth image loading */
+img {
+  transition: opacity 0.4s ease;
+}
+
+img[loading="lazy"] {
+  opacity: 0;
+}
+
+img.loaded {
+  opacity: 1;
+}
+
+/* Poetic text rendering */
+.poem-text {
+  font-family: var(--font-literary);
+  font-style: italic;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Emotional behavior — these utilities consume CSS variables set by
+   behaviorCssVars() on the EmotionDetail root. Each emotion's resonance
+   shapes how its page actually behaves (pacing, jitter, hover lift).
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Section spacing scaled by the emotion's intimacy/density */
+.em-section-flow > * + * {
+  margin-top: calc(4rem * var(--em-section-gap-scale, 1));
+}
+
+/* Generic emergence — sections fade in with the emotion's ease curve */
+.em-emerge {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity var(--em-fade-duration, 600ms) var(--em-ease, ease),
+    transform var(--em-fade-duration, 600ms) var(--em-ease, ease);
+}
+.em-emerge.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Trail — content that has scrolled out of view lingers (melancholy persists) */
+.em-trail {
+  transition: opacity var(--em-trail-duration, 800ms) var(--em-ease, ease);
+}
+
+/* Nervous jitter for tense emotions — applied to titles/labels */
+@keyframes em-jitter {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20%      { transform: translate3d(calc(var(--em-jitter-amplitude, 0px) * -0.6), calc(var(--em-jitter-amplitude, 0px) * 0.3), 0); }
+  40%      { transform: translate3d(calc(var(--em-jitter-amplitude, 0px) *  0.5), calc(var(--em-jitter-amplitude, 0px) * -0.4), 0); }
+  60%      { transform: translate3d(calc(var(--em-jitter-amplitude, 0px) * -0.3), calc(var(--em-jitter-amplitude, 0px) * 0.6), 0); }
+  80%      { transform: translate3d(calc(var(--em-jitter-amplitude, 0px) *  0.4), calc(var(--em-jitter-amplitude, 0px) * 0.2), 0); }
+}
+.em-jitter {
+  animation: em-jitter 2.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Pulse — used by music section, accent rings, etc. */
+@keyframes em-pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.55; }
+  50%      { transform: scale(1.08); opacity: 0.85; }
+}
+.em-pulse {
+  animation: em-pulse calc(1s / var(--em-pulse-freq, 0.5)) ease-in-out infinite;
+}
+
+/* Hover lift — scales with intimacy/warmth */
+.em-card {
+  transition: transform var(--em-fade-duration, 400ms) var(--em-ease, ease),
+              box-shadow var(--em-fade-duration, 400ms) var(--em-ease, ease);
+}
+.em-card:hover {
+  transform: translateY(calc(var(--em-hover-lift, 4px) * -1));
+}
+
+/* Peripheral haze — wraps margin content in a soft blur for low-clarity emotions */
+.em-periphery {
+  backdrop-filter: blur(var(--em-periphery-blur, 0px));
+  -webkit-backdrop-filter: blur(var(--em-periphery-blur, 0px));
+}
+
+/* Slow-and-deep breath of the atmospheric layer (driven by --em-breath-period
+   set inline on the EmotionalAtmosphere component) */
+
+/* Resonance axis bars */
+.resonance-bar {
+  height: 2px;
+  background: linear-gradient(to right, rgba(200, 147, 90, 0.15), var(--tribe-color, rgba(200, 147, 90, 0.8)));
+  border-radius: 1px;
+  transform-origin: left;
+}
+
+/* Participation prompt */
+.participation-option {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.participation-option:hover {
+  transform: translateX(4px);
+}
+
+/* Map SVG styles */
+.map-node {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.map-link {
+  pointer-events: none;
+}
+
+/* ─── Tailwind-compat ink colors that use CSS variables ───────────── */
+.text-ink         { color: var(--album-ink); }
+.text-ink-muted   { color: var(--album-ink-muted); }
+.text-ink-faint   { color: var(--album-ink-faint); }
+.bg-void          { background-color: var(--album-void); }
+.bg-deep          { background-color: var(--album-deep); }
+.bg-surface       { background-color: var(--album-surface); }
+.bg-raised        { background-color: var(--album-raised); }
+.border-album     { border-color: var(--album-border); }
+
+/* ─── Theme-aware utility for ink-on-bg overlays ──────────────────── */
+/* Use as: style={{ background: 'rgba(var(--album-ink-rgb), 0.04)' }} */
+
+/* Dawn-specific override: dim some excessive shadows that look weird on paper */
+html[data-theme="dawn"] .glass,
+html[data-theme="dawn"] .glass-strong {
+  /* parchment glass has a hint of warm cream */
+  box-shadow: 0 4px 30px -8px rgba(180, 130, 80, 0.10);
+}
