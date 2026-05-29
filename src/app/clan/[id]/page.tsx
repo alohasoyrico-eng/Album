@@ -62,7 +62,7 @@ export default async function ClanPage({ params }: { params: Promise<Params> }) 
       <ClanView
         clan={clan}
         tribe={tribe}
-        canonical={canonical}
+        canonical={canonical ?? null}
         clanEmotions={clanEmotions}
         siblings={siblings}
         prev={prev}

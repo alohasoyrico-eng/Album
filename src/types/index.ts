@@ -325,6 +325,9 @@ export interface Poem {
   excerpt: string;
   fullText?: string;
   source: "poetrydb" | "gutenberg" | "seed";
+  sourceId?: string;
+  sourceUrl?: string;
+  poeticDescription?: string;
   language: "en" | "es" | "fr" | "de" | "pt";
   emotionResonance: EmotionId[];
   colorResonance: ColorId[];
