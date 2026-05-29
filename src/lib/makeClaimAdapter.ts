@@ -133,14 +133,44 @@ export function makeClaimAdapter<E extends CulturalEntity>(
     return ext;
   }
 
-  const PLURAL = raw.map(materialise);
-  const MAP_PLURAL = new Map(PLURAL.map((e) => [e.id, e]));
-
-  for (const r of raw) if (!r.claims) r.claims = makeClaims(r);
-  void rawMap;
+  // LAZY MATERIALISATION (perf): we no longer call `raw.map(materialise)`
+  // at module init — for the ~1,300 cultural items × 5 fields each that
+  // was ~6,500 object allocations during cold boot. Instead, PLURAL is a
+  // proxy view backed by `materialise()` per-id; consumers that iterate
+  // get the materialised array on demand, callers that resolve a single
+  // id only pay for that one. The raw arrays already have `claims = undefined`
+  // — the resolver detects this and materialises on first read.
+  let _pluralCache: E[] | null = null;
+  const getPlural = (): E[] => {
+    if (_pluralCache) return _pluralCache;
+    _pluralCache = raw.map(materialise);
+    return _pluralCache;
+  };
+  // MAP_PLURAL is similarly lazy: we resolve by id through `materialise`
+  // when asked, so the Map never has to be pre-populated.
+  const MAP_PLURAL = new Proxy(new Map<string, E>(), {
+    get(target, prop) {
+      if (prop === "get") {
+        return (id: string) => {
+          const cached = target.get(id);
+          if (cached) return cached;
+          const r = rawMap.get(id);
+          if (!r) return undefined;
+          const ext = materialise(r as E);
+          target.set(id, ext);
+          return ext;
+        };
+      }
+      if (prop === "size") {
+        return raw.length;
+      }
+      const v = Reflect.get(target, prop);
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  });
 
   return {
-    PLURAL,
+    get PLURAL() { return getPlural(); },
     MAP_PLURAL,
     registerOverlay(id, claims) {
       const cur = _overlays[id] ?? {};

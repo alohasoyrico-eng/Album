@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Emotion, Tribe } from "@/types";
@@ -39,34 +39,15 @@ import { LITERATURE_MAP } from "@/data/seed/literature";
 import { RITUAL_MAP } from "@/data/seed/ritual";
 import { THEATER_MAP } from "@/data/seed/theater";
 
-// Reveal duration + delay step are now overridden per-emotion by the
-// motion pattern via the makeFadeIn() helper below. This default keeps
-// backwards compatibility for any caller that doesn't pass a pattern.
+// Reveal animations are DISABLED (perf). Every motion.div in this file
+// references `reveal`, but the variants now resolve to instant identity
+// transitions — framer-motion runs a single tick to mark the elements
+// visible and never schedules further work. Restoring motion later is
+// one edit: bring back makeFadeIn() and the previous variant shape.
 const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.6, ease: [0.16, 1, 0.3, 1] } }),
+  hidden: { opacity: 1, y: 0 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0 } },
 };
-
-/** Build a per-emotion reveal variant from the assigned motion pattern. */
-function makeFadeIn(pace: number, easeCss: string) {
-  // pace 600ms → snappy 0.4s reveal with tiny delay step
-  // pace 6000ms → slow 1.1s reveal with longer staggered delay
-  const duration = Math.max(0.35, Math.min(1.3, pace / 5000));
-  const delayStep = Math.max(0.05, Math.min(0.18, pace / 28000));
-  // Try to extract the four cubic-bezier numbers; framer-motion accepts
-  // them as a tuple. Fall back to default ease-out on failure.
-  const m = easeCss.match(/cubic-bezier\(([-\d.,\s]+)\)/);
-  const ease = m
-    ? (m[1].split(",").map((s) => parseFloat(s.trim())) as [number, number, number, number])
-    : ([0.16, 1, 0.3, 1] as [number, number, number, number]);
-  return {
-    hidden: { opacity: 0, y: 20 },
-    visible: (i: number) => ({
-      opacity: 1, y: 0,
-      transition: { delay: i * delayStep, duration, ease },
-    }),
-  };
-}
 
 interface Props {
   emotion: Emotion;
@@ -156,54 +137,64 @@ export function EmotionDetail({ emotion, tribe }: Props) {
   // recipe / typeset / motion all recompute against the live vector.
   // No lens → same canonical look as before. Lens active → page wears
   // the perspective.
-  const liveCtx = { lens: readCtx.lens, userId: readCtx.userId };
-  const recipe = emotionRecipe(emotion, tribeColor, liveCtx);
+  // The lens key is the only thing that can flip live readings. Memoising
+  // the context object lets every downstream useMemo() use stable deps.
+  const liveCtx = useMemo(
+    () => ({ lens: readCtx.lens, userId: readCtx.userId }),
+    [readCtx.lens, readCtx.userId],
+  );
   const liveResValue = resolvedEmotion?.resonance ?? emotion.resonance;
-  const behavior = deriveBehavior(liveResValue);
-  const behaviorVars = behaviorCssVars(behavior);
 
-  // Composite cue: is this a tense emotion that earns micro-jitter on labels?
-  const isNervous = emotion.resonance.tension / 100 * 0.6 + (100 - emotion.resonance.control) / 100 * 0.4 > 0.65;
+  // Each of these derivations does real work: Oklab mixing + catalogue
+  // snap (recipe), 4-role font ranking (typeset), SVG-noise URL encoding
+  // (texture), WCAG ink picker (inkOverrides), assignment lookup (motion).
+  // Without memoisation they fired on every parent render — for instance
+  // each scroll-into-view, each window resize, each unrelated state tick.
+  const recipe = useMemo(
+    () => emotionRecipe(emotion, tribeColor, liveCtx),
+    [emotion, tribeColor, liveCtx],
+  );
+  const behavior = useMemo(() => deriveBehavior(liveResValue), [liveResValue]);
+  const behaviorVars = useMemo(() => behaviorCssVars(behavior), [behavior]);
+  const isNervous = useMemo(
+    () => emotion.resonance.tension / 100 * 0.6 + (100 - emotion.resonance.control) / 100 * 0.4 > 0.65,
+    [emotion.resonance.tension, emotion.resonance.control],
+  );
 
-  // ─── Emergent type SET ────────────────────────────────────────────────
-  // Not one font — four roles (display/body/literary/technical) re-typeset
-  // the entire page. "amor" gets a romantic serif + handwriting; "ira" gets
-  // a heavy slab + brutalist sans + condensed display. The template stays;
-  // the typographic dress changes wholesale per emotion.
-  const typeSet = deriveTypeSet(liveResValue, emotion.id, liveCtx);
-  const typeVars = typeSetToCssVars(typeSet);
+  const typeSet = useMemo(
+    () => deriveTypeSet(liveResValue, emotion.id, liveCtx),
+    [liveResValue, emotion.id, liveCtx],
+  );
+  const typeVars = useMemo(() => typeSetToCssVars(typeSet), [typeSet]);
   const titleFont = typeSet.display;
   const titleFontFamily = titleFont?.googleFontFamily ?? "Cormorant Garamond";
 
-  // ─── Emergent palette ────────────────────────────────────────────────────
-  const emergentPalette = resonateFrom(emotion.resonance, { kinds: ["color"], limit: 16, mode: "expected" })
-    .map((h) => COLOR_MAP.get(h.entity.id))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  const emergentPalette = useMemo(
+    () => resonateFrom(emotion.resonance, { kinds: ["color"], limit: 16, mode: "expected" })
+      .map((h) => COLOR_MAP.get(h.entity.id))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c)),
+    [emotion.resonance],
+  );
 
-  // ─── Generative texture for the page surface ──────────────────────────
-  // The emotion paints its own atmospheric ground: warm grain, cool radial,
-  // tense noise. Built from the resonance axes + emergent palette.
-  const texture = deriveTexture(liveResValue, emergentPalette);
+  const texture = useMemo(
+    () => deriveTexture(liveResValue, emergentPalette),
+    [liveResValue, emergentPalette],
+  );
 
-  // ─── Contrast guarantee ────────────────────────────────────────────────
-  // Approximate the effective background luminance after the texture
-  // stack lands: base + a chunk of the tint. Then derive ink colours
-  // (highest-emphasis, body, captions) that satisfy WCAG AA against it.
-  const effectiveBg = blendHex(texture.baseColor, texture.surfaceTint, 0.35);
-  const inkOverrides = inkVars(effectiveBg);
+  const inkOverrides = useMemo(() => {
+    const effectiveBg = blendHex(texture.baseColor, texture.surfaceTint, 0.35);
+    return inkVars(effectiveBg);
+  }, [texture]);
 
-  // ─── Motion identity — pace, inertia, trajectory, decay, size bias ───
-  // The assigned motion pattern injects CSS variables that propagate to
-  // every descendant: --em-pace (breath ms), --em-inertia (cubic-bezier),
-  // --em-trajectory, --em-decay, --em-size-bias. Components that already
-  // read these vars (or read them in the future) re-pace per emotion.
-  const motionPattern = emotionMotion(emotion.id, liveCtx);
-  const motionVars = motionPattern ? motionCssVars(motionPattern) : {};
-  // Reveal variant whose timing comes from the assigned pattern — fast
-  // emotions reveal quickly, lingering ones unfold slowly.
-  const reveal = motionPattern
-    ? makeFadeIn(motionPattern.pace, motionPattern.inertia)
-    : fadeIn;
+  const motionPattern = useMemo(
+    () => emotionMotion(emotion.id, liveCtx),
+    [emotion.id, liveCtx],
+  );
+  const motionVars = useMemo(
+    () => motionPattern ? motionCssVars(motionPattern) : {},
+    [motionPattern],
+  );
+  const reveal = fadeIn;
 
   return (
     <div
@@ -225,9 +216,7 @@ export function EmotionDetail({ emotion, tribe }: Props) {
         className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-1000"
         style={{
           background: texture.background,
-          // The atmospheric ground drifts at the page's pace. Slow
-          // emotions sway over 6s; jitter ones twitch every 800ms.
-          animation: "em-drift var(--em-pace, 4s) ease-in-out infinite",
+          // Drift animation disabled for perf — atmosphere stays static.
         }}
       />
       <div
@@ -237,8 +226,7 @@ export function EmotionDetail({ emotion, tribe }: Props) {
           background: texture.overlay,
           mixBlendMode: texture.overlayBlend,
           opacity: 0.92,
-          // Overlay drifts in opposite phase — gives the surface depth
-          animation: "em-drift var(--em-pace, 4s) ease-in-out infinite reverse",
+          // Drift animation disabled for perf.
         }}
       />
 
@@ -335,7 +323,7 @@ export function EmotionDetail({ emotion, tribe }: Props) {
               // The title breathes at the assigned motion pattern's pace.
               // A "respiración honda" emotion pulses every 5.4s; a "jitter
               // ansioso" one every 0.8s. Visible motion identity per page.
-              animation: "em-breath var(--em-pace, 4s) ease-in-out infinite",
+              // Breath animation disabled for perf.
             }}
           >
             {emotion.name}
