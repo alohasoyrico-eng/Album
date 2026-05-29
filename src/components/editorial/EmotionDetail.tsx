@@ -29,6 +29,7 @@ import { emotionMotion, motionCssVars } from "@/lib/emotionMotion";
 import { PluralReadings } from "./PluralReadings";
 import { resolveEmotion } from "@/data/ontology/emotions-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import { hydrateClaims, subscribeToEntity, useClaimsVersion } from "@/lib/participation";
 import { EmergentResonance } from "./EmergentResonance";
 import { PathwayDrift } from "./PathwayDrift";
 import { SCULPTURE_MAP } from "@/data/seed/sculpture";
@@ -61,6 +62,26 @@ export function EmotionDetail({ emotion, tribe }: Props) {
     trackEvent("editorial_page_opened", { emotionId: emotion.id, tribe: emotion.tribe });
   }, [emotion]);
 
+  // ─── Participation: hydrate remote claims + subscribe to live updates ─
+  // On mount we fetch any user / curator / inference claims about this
+  // emotion from Supabase and merge them into the in-memory adapter
+  // (registerOverlay). The next consensus read sees them alongside
+  // Marina. Realtime keeps the page in sync as others contribute.
+  const claimsVersion = useClaimsVersion();
+  useEffect(() => {
+    let cancelled = false;
+    hydrateClaims("emotion", emotion.id).then((n) => {
+      if (cancelled) return;
+      if (n > 0) {
+        // hydrateClaims already notifies via its push path, but force a
+        // version bump in case the bridge changed between paint frames.
+        void n;
+      }
+    });
+    const unsub = subscribeToEntity("emotion", emotion.id);
+    return () => { cancelled = true; unsub(); };
+  }, [emotion.id]);
+
   const clan = CLAN_MAP.get(emotion.clan);
 
   // ─── Context-aware reads through the active lens ──────────────────────
@@ -69,7 +90,14 @@ export function EmotionDetail({ emotion, tribe }: Props) {
   // resolver picks a different reading, description / poeticIntro /
   // etymology flip live without a navigation.
   const readCtx = useReadContext();
-  const resolvedEmotion = resolveEmotion(emotion.id, { lens: readCtx.lens });
+  const resolvedEmotion = useMemo(
+    () => resolveEmotion(emotion.id, { lens: readCtx.lens }),
+    // claimsVersion bumps whenever new remote claims merge into the
+    // adapter; including it forces re-resolve without React thinking
+    // the value handle changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [emotion.id, readCtx.lens, claimsVersion],
+  );
   const liveDescription = resolvedEmotion?.description ?? emotion.description;
   const livePoeticIntro = resolvedEmotion?.poeticIntro ?? emotion.poeticIntro;
   const liveEtymology   = resolvedEmotion?.etymology   ?? emotion.etymology;
@@ -137,11 +165,14 @@ export function EmotionDetail({ emotion, tribe }: Props) {
   // recipe / typeset / motion all recompute against the live vector.
   // No lens → same canonical look as before. Lens active → page wears
   // the perspective.
-  // The lens key is the only thing that can flip live readings. Memoising
-  // the context object lets every downstream useMemo() use stable deps.
+  // The lens key + claimsVersion are the only things that can flip live
+  // readings. Memoising the context object lets every downstream useMemo()
+  // use stable deps. claimsVersion bumps when remote claims merge in,
+  // forcing recipe/typeset/motion/texture to re-derive.
   const liveCtx = useMemo(
     () => ({ lens: readCtx.lens, userId: readCtx.userId }),
-    [readCtx.lens, readCtx.userId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [readCtx.lens, readCtx.userId, claimsVersion],
   );
   const liveResValue = resolvedEmotion?.resonance ?? emotion.resonance;
 

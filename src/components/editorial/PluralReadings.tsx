@@ -18,6 +18,9 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { resolveEmotion, listLensesPresent } from "@/data/ontology/emotions-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import { submitClaim, voteClaim, retractVote, useClaimsVersion } from "@/lib/participation";
+import { isParticipationEnabled } from "@/lib/supabaseClient";
+import { getSessionId } from "@/lib/sessionId";
 import type { LensKey, ClaimSource, Claim } from "@/types/claims";
 
 const LENS_LABELS: Record<LensKey, string> = {
@@ -61,10 +64,18 @@ export function PluralReadings({ emotionId, accent }: Props) {
     globalCtx.setLens(next);
   };
 
-  const lensesAvailable = useMemo(() => listLensesPresent(emotionId), [emotionId]);
+  // claimsVersion bumps when remote claims merge in, invalidating the
+  // resolved view so submissions / votes by other visitors appear live.
+  const claimsVersion = useClaimsVersion();
+  const lensesAvailable = useMemo(
+    () => listLensesPresent(emotionId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [emotionId, claimsVersion],
+  );
   const resolved = useMemo(
     () => resolveEmotion(emotionId, { lens: activeLens ?? undefined }),
-    [emotionId, activeLens],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [emotionId, activeLens, claimsVersion],
   );
 
   if (!resolved) return null;
@@ -218,6 +229,11 @@ export function PluralReadings({ emotionId, accent }: Props) {
                     {claim.lens && ` · ${LENS_LABELS[claim.lens as LensKey]}`}
                     {` · peso ${Math.round(claim.weight * 100)}%`}
                   </span>
+                  {/* Voting thumbs — only when participation backend is wired
+                      AND the claim has a real db id (UUID), not a seed id. */}
+                  {isParticipationEnabled() && /^[0-9a-f-]{36}$/.test(claim.id) && (
+                    <ClaimVoteBadge claim={claim} accent={accent} />
+                  )}
                 </figcaption>
                 {claim.evidence && (
                   <p
@@ -232,6 +248,267 @@ export function PluralReadings({ emotionId, accent }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Submission form — anyone can drop a new reading. Shown only when
+          the participation backend is configured. */}
+      {isParticipationEnabled() && (
+        <SubmitReadingForm
+          emotionId={emotionId}
+          accent={accent}
+          activeLens={activeLens}
+        />
+      )}
     </section>
+  );
+}
+
+// ─── Submit a new reading ─────────────────────────────────────────────
+
+function SubmitReadingForm({
+  emotionId,
+  accent,
+  activeLens,
+}: {
+  emotionId: string;
+  accent: string;
+  activeLens: LensKey | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const [lens, setLens] = useState<LensKey | "">(activeLens ?? "");
+  const [evidence, setEvidence] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<null | "ok" | "err">(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!value.trim() || busy) return;
+    setBusy(true);
+    setStatus(null);
+    const r = await submitClaim({
+      kind: "emotion",
+      entityId: emotionId,
+      fieldPath: "description",
+      value: value.trim(),
+      lens: (lens || undefined) as LensKey | undefined,
+      evidence: evidence.trim() || undefined,
+      weight: 0.4,
+    });
+    setBusy(false);
+    if (r.ok) {
+      setStatus("ok");
+      setValue("");
+      setEvidence("");
+      setTimeout(() => { setStatus(null); setOpen(false); }, 1400);
+    } else {
+      setStatus("err");
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-8 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs border-2 transition-all hover:scale-[1.02]"
+        style={{
+          borderColor: `${accent}66`,
+          backgroundColor: `${accent}10`,
+          color: accent,
+          fontFamily: "var(--font-technical)",
+          letterSpacing: "0.12em",
+        }}
+      >
+        <span className="icon icon-sm">add</span>
+        AÑADIR MI LECTURA
+      </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="mt-8 p-5 rounded-2xl border"
+      style={{ borderColor: `${accent}40`, backgroundColor: `${accent}08` }}
+    >
+      <p
+        className="text-[0.7rem] mb-3"
+        style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em", color: accent }}
+      >
+        TU LECTURA
+      </p>
+
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Cuenta cómo lees tú esta emoción. ¿Qué nombre le pondrías? ¿En qué tradición vive?"
+        rows={4}
+        maxLength={1200}
+        required
+        className="w-full bg-transparent outline-none text-ink/95 placeholder:text-ink-muted/50 italic"
+        style={{ fontFamily: "var(--font-literary)", fontSize: "1rem", lineHeight: "1.6" }}
+      />
+
+      <div className="flex flex-wrap items-center gap-3 mt-4">
+        <select
+          value={lens}
+          onChange={(e) => setLens(e.target.value as LensKey | "")}
+          className="px-3 py-1.5 rounded-full text-xs bg-transparent border outline-none"
+          style={{
+            borderColor: `${accent}40`,
+            color: "var(--album-ink)",
+            fontFamily: "var(--font-technical)",
+            letterSpacing: "0.05em",
+          }}
+        >
+          <option value="">Sin lente</option>
+          {(Object.entries(LENS_LABELS) as Array<[LensKey, string]>).map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          value={evidence}
+          onChange={(e) => setEvidence(e.target.value)}
+          placeholder="Referencia (autor, fuente, tradición)..."
+          maxLength={400}
+          className="flex-1 min-w-[200px] px-3 py-1.5 rounded-full text-xs bg-transparent border outline-none placeholder:text-ink-muted/60"
+          style={{
+            borderColor: `${accent}30`,
+            color: "var(--album-ink)",
+            fontFamily: "var(--font-technical)",
+          }}
+        />
+      </div>
+
+      <div className="mt-5 flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={busy || !value.trim()}
+          className="px-4 py-2 rounded-full text-xs border-2 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:scale-[1.02]"
+          style={{
+            borderColor: accent,
+            backgroundColor: `${accent}22`,
+            color: accent,
+            fontFamily: "var(--font-technical)",
+            letterSpacing: "0.1em",
+          }}
+        >
+          {busy ? "ENVIANDO…" : "ENVIAR"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-xs text-ink-faint hover:text-ink-muted transition-colors"
+          style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
+        >
+          cancelar
+        </button>
+        {status === "ok" && (
+          <span className="text-xs italic" style={{ color: accent, fontFamily: "var(--font-literary)" }}>
+            Gracias por aportar.
+          </span>
+        )}
+        {status === "err" && (
+          <span className="text-xs italic text-ink-faint" style={{ fontFamily: "var(--font-literary)" }}>
+            No se pudo enviar; reintenta.
+          </span>
+        )}
+      </div>
+
+      <p
+        className="mt-4 text-[0.65rem] text-ink-faint/85 italic max-w-2xl"
+        style={{ fontFamily: "var(--font-literary)" }}
+      >
+        Tu lectura coexiste con las demás. Cada visitante puede dar +1 o −1
+        para ajustar el peso colectivo. Anónimo, sin login.
+      </p>
+    </form>
+  );
+}
+
+// ─── Voting thumbs ────────────────────────────────────────────────────
+
+function ClaimVoteBadge({ claim, accent }: { claim: Claim<string>; accent: string }) {
+  const [pending, setPending] = useState(false);
+  const [optimistic, setOptimistic] = useState<{ dir: 1 | -1 | 0; score: number; total: number } | null>(null);
+
+  const up = optimistic?.dir === 1;
+  const down = optimistic?.dir === -1;
+  const score = optimistic?.score ?? (claim.votes ? Math.round(claim.votes.up - claim.votes.down) : 0);
+  const total = optimistic?.total ?? (claim.votes ? Math.round(claim.votes.up + claim.votes.down) : 0);
+
+  // Read session-scoped vote state from localStorage so re-renders preserve user state.
+  const voteKey = `album:vote:${claim.id}`;
+  if (optimistic === null && typeof window !== "undefined") {
+    try {
+      const raw = window.localStorage.getItem(voteKey);
+      if (raw === "1" || raw === "-1") {
+        const dir = parseInt(raw, 10) as 1 | -1;
+        setOptimistic({ dir, score, total });
+      }
+    } catch { /* */ }
+  }
+  void getSessionId; // ensure module side-effect
+
+  async function cast(dir: 1 | -1) {
+    if (pending) return;
+    setPending(true);
+    const wasSame = (dir === 1 && up) || (dir === -1 && down);
+    const prevDir = optimistic?.dir ?? 0;
+    const delta = (wasSame ? -prevDir : dir - prevDir);
+    setOptimistic({
+      dir: wasSame ? 0 : dir,
+      score: score + delta,
+      total: wasSame ? total - 1 : (prevDir === 0 ? total + 1 : total),
+    });
+    try {
+      if (wasSame) {
+        await retractVote(claim.id);
+        try { window.localStorage.removeItem(voteKey); } catch { /* */ }
+      } else {
+        await voteClaim(claim.id, dir);
+        try { window.localStorage.setItem(voteKey, String(dir)); } catch { /* */ }
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border"
+      style={{
+        borderColor: `${accent}30`,
+        fontFamily: "var(--font-technical)",
+        letterSpacing: "0.04em",
+        fontSize: "0.6rem",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => cast(1)}
+        disabled={pending}
+        aria-label="Coincido"
+        className="icon icon-sm transition-colors"
+        style={{ color: up ? accent : "var(--album-ink-faint)" }}
+      >
+        thumb_up
+      </button>
+      <span className="px-1" style={{ color: "var(--album-ink-muted)" }}>
+        {score > 0 ? `+${score}` : score} · {total}
+      </span>
+      <button
+        type="button"
+        onClick={() => cast(-1)}
+        disabled={pending}
+        aria-label="Disiento"
+        className="icon icon-sm transition-colors"
+        style={{ color: down ? accent : "var(--album-ink-faint)" }}
+      >
+        thumb_down
+      </button>
+    </span>
   );
 }

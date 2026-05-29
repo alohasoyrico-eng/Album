@@ -50,3 +50,4 @@ yarn-error.log*
 # Scratch / temp
 scripts/_*.mts
 scripts/_*.mjs
+.env.local
