@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo } from "react";
 import type { CSSProperties } from "react";
+import { AccentButton } from "@/components/ui/AccentButton";
 import { trackEvent } from "@/lib/analytics";
 import { useCollectionsStore } from "@/lib/store";
 import { resolveEmotion } from "@/data/ontology/emotions-claims";
@@ -120,19 +121,19 @@ interface SaveButtonProps {
 
 export function SaveCollectionButton({ emotionId, accent }: SaveButtonProps) {
   const { saveEmotion } = useCollectionsStore();
+  // Primary action — solid accent fill, WCAG-picked ink. The accent
+  // doubles as the page's identity colour, so the CTA reads as "this
+  // is THE thing to do on this page" without the old tinted-button
+  // ambiguity.
   return (
-    <button
-      onClick={() => {
-        saveEmotion(emotionId);
-      }}
-      className="px-4 py-2 rounded-full border transition-all duration-300 hover:bg-white/4 text-sm"
-      style={{
-        borderColor: `${accent}40`,
-        color: accent,
-        fontFamily: "var(--font-technical)",
-      }}
+    <AccentButton
+      onClick={() => saveEmotion(emotionId)}
+      variant="primary"
+      accent={accent}
+      leadingIcon="bookmark_add"
+      size="md"
     >
-      + Guardar en colección
-    </button>
+      Guardar en colección
+    </AccentButton>
   );
 }

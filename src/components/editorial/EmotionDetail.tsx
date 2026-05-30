@@ -37,6 +37,7 @@ import {
   EmotionLensText,
   SaveCollectionButton,
 } from "./EmotionDetailIslands";
+import { Chip } from "@/components/ui/Chip";
 import type { EmotionPageData } from "@/lib/server/emotionPageData";
 // ─── Lazy-loaded below-the-fold sections ───────────────────────────────
 // These components each pull in heavy dependencies (resonance-engine
@@ -146,71 +147,49 @@ export function EmotionDetail({ pageData }: Props) {
       <EmotionalAtmosphere color={recipe.finalHex} behavior={behavior} secondaryColor={tribeColor} />
       {/* The tribal hero gradient stays as a residual hint — most of the
           atmospheric weight now lives in the EmotionalAtmosphere layer. */}
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
-        {/* Breadcrumb — Mapa / Tribu / Clan / Emoción */}
-        <div className="flex items-center gap-2 mb-12 flex-wrap">
-          <Link href="/" className="text-ink-faint text-xs hover:text-ink-muted transition-colors" style={{ fontFamily: "var(--font-technical)" }}>
-            Mapa
-          </Link>
-          <span className="text-ink-faint text-xs">/</span>
-          <Link
-            href={`/tribe/${tribe.id}`}
-            className="text-xs hover:opacity-80 transition-opacity"
-            style={{ color: tribeColor, fontFamily: "var(--font-technical)", fontSize: "0.7rem" }}
->
+      {/*
+        Layout: a single outer container at max-w-6xl (≈1152 px) hosts
+        the page. Inside we constrain text-only regions to a comfortable
+        reading width (max-w-prose ≈ 65ch) while card grids expand to
+        the full canvas. That gives wide desktops the space they were
+        wasting without making long prose unreadable.
+      */}
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
+        {/* Breadcrumb — neutral ink throughout. Colour shows up later
+            (in the atmosphere, palette, recipe). */}
+        <nav
+          aria-label="Ruta"
+          className="flex items-center gap-2 mb-10 flex-wrap text-xs text-ink-faint"
+          style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.04em" }}
+        >
+          <Link href="/" className="hover:text-ink-muted transition-colors">Mapa</Link>
+          <span aria-hidden>/</span>
+          <Link href={`/tribe/${tribe.id}`} className="hover:text-ink-muted transition-colors">
             {tribe.name}
           </Link>
           {clan && (
             <>
-              <span className="text-ink-faint text-xs">/</span>
-              <Link
-                href={`/clan/${clan.id}`}
-                className="text-xs hover:opacity-80 transition-opacity"
-                style={{ color: tribeColor, fontFamily: "var(--font-technical)", fontSize: "0.7rem" }}
->
+              <span aria-hidden>/</span>
+              <Link href={`/clan/${clan.id}`} className="hover:text-ink-muted transition-colors">
                 {clan.name}
               </Link>
             </>
           )}
-          <span className="text-ink-faint text-xs">/</span>
-          <span className="text-xs text-ink-muted" style={{ fontFamily: "var(--font-technical)" }}>{emotion.name}</span>
-        </div>
-        {/* Tribe + Clan chips */}
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <Link
-            href={`/tribe/${tribe.id}`}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full transition-all duration-300 hover:bg-white/[0.02]"
-            style={{
-              backgroundColor: `${tribeColor}15`,
-              color: tribeColor,
-              border: `1px solid ${tribeColor}30`,
-              fontFamily: "var(--font-technical)",
-              letterSpacing: "0.1em",
-              fontSize: "0.65rem",
-            }}
-            title={`Ir a la tribu ${tribe.name}`}
->
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: tribeColor }}
-            />
+          <span aria-hidden>/</span>
+          <span className="text-ink-muted">{emotion.name}</span>
+        </nav>
+
+        {/* Tribe + Clan as proper chips. Tribe gets the solid (it's the
+            identity badge for this page); clan stays outlined so the two
+            don't compete. */}
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <Chip href={`/tribe/${tribe.id}`} variant="solid" accent={tribeColor} title={`Ir a la tribu ${tribe.name}`}>
             TRIBU · {tribe.name.toUpperCase()}
-          </Link>
+          </Chip>
           {clan && (
-            <Link
-              href={`/clan/${clan.id}`}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full transition-all duration-300 hover:bg-white/[0.02]"
-              style={{
-                color: tribeColor,
-                border: `1px solid ${tribeColor}25`,
-                fontFamily: "var(--font-technical)",
-                letterSpacing: "0.1em",
-                fontSize: "0.65rem",
-              }}
-              title={`Ir al clan ${clan.name}`}
->
+            <Chip href={`/clan/${clan.id}`} variant="outline" accent={tribeColor} title={`Ir al clan ${clan.name}`}>
               CLAN · {clan.name.toUpperCase()} · {clan.feelings.length} SENT.
-            </Link>
+            </Chip>
           )}
         </div>
         {/* Title — gains micro-jitter for nervous emotions (anxiety, fear, rage) */}
@@ -236,12 +215,15 @@ export function EmotionDetail({ pageData }: Props) {
             {emotion.name}
           </h1>
           <p
-            className="text-ink-muted/60 mt-1 flex items-center gap-3 flex-wrap"
+            className="text-ink-muted/70 mt-2 flex items-center gap-3 flex-wrap"
             style={{ fontFamily: "var(--font-technical)", fontSize: "0.75rem", letterSpacing: "0.12em" }}
 >
             <span>{emotion.nameEn.toUpperCase()}</span>
             <span className="text-ink-faint">·</span>
-            <span style={{ color: recipe.finalHex }}>
+            {/* Temperament label is metadata, not interactive — keep it
+                in the neutral ink scale. The page already wears this
+                emotion's colour through the atmosphere + recipe panel. */}
+            <span>
               TEMPERAMENTO {behavior.temperament.toUpperCase()}
             </span>
             {titleFont && (
@@ -267,7 +249,7 @@ export function EmotionDetail({ pageData }: Props) {
           emotionId={emotion.id}
           field="poeticIntro"
           fallback={emotion.poeticIntro}
-          className="text-xl md:text-2xl text-ink-muted/80 max-w-2xl mb-8 leading-relaxed"
+          className="text-xl md:text-2xl text-ink-muted/85 max-w-prose mb-8 leading-relaxed"
           style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 300 }}
         />
         {/* Etymology */}
@@ -289,7 +271,7 @@ export function EmotionDetail({ pageData }: Props) {
             emotionId={emotion.id}
             field="description"
             fallback={emotion.description}
-            className="text-base text-ink/70 max-w-2xl leading-relaxed"
+            className="text-base text-ink/85 max-w-prose leading-relaxed"
             style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
           />
           {/* PluralReadings — the first consumer of the Claim<T> system.
@@ -325,7 +307,7 @@ export function EmotionDetail({ pageData }: Props) {
               PALETA EMERGENTE
             </h2>
             <p
-              className="text-sm text-ink-muted/65 italic max-w-xl leading-relaxed mb-6"
+              className="text-sm text-ink-muted/80 italic max-w-prose leading-relaxed mb-6"
               style={{ fontFamily: "var(--font-literary)" }}
 >
               Los 16 colores cuyo vector resuena más con {emotion.name.toLowerCase()},
@@ -891,27 +873,27 @@ export function EmotionDetail({ pageData }: Props) {
             </h2>
             <div className="flex flex-wrap gap-2">
               {relatedEmotions.map((rel) => (
-                <Link
+                // Chips here are NAV — neutral ink + a small accent dot
+                // that carries the tribe colour (neighbour) or the
+                // antonym signal. The label itself stays in the ink
+                // scale so every name is equally readable.
+                <Chip
                   key={`${rel.rel}-${rel.id}`}
                   href={`/emotion/${rel.id}`}
-                  className="group px-3 py-2 rounded-full border transition-all duration-300 hover:scale-105"
-                  style={{
-                    borderColor: rel.rel === "antonym"
-                      ? `${tribeColor}30`
-                      : `${rel.tribeColor}30`,
-                    color: rel.rel === "antonym"
-                      ? `${tribeColor}70`
-                      : rel.tribeColor,
-                    backgroundColor: rel.rel === "antonym"
-                      ? "transparent"
-                      : `${rel.tribeColor}10`,
-                  }}
->
-                  <span className="text-xs" style={{ fontFamily: "var(--font-technical)" }}>
-                    {rel.rel === "antonym" && <span className="opacity-50 mr-1">↔</span>}
-                    {rel.name}
-                  </span>
-                </Link>
+                  variant="outline"
+                  accent={rel.rel === "antonym" ? tribeColor : rel.tribeColor}
+                >
+                  <span
+                    aria-hidden
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      backgroundColor: rel.rel === "antonym" ? "transparent" : rel.tribeColor,
+                      border: rel.rel === "antonym" ? `1px solid ${tribeColor}` : "none",
+                    }}
+                  />
+                  {rel.rel === "antonym" && <span className="opacity-60">↔</span>}
+                  {rel.name}
+                </Chip>
               ))}
             </div>
           </div>
@@ -920,15 +902,15 @@ export function EmotionDetail({ pageData }: Props) {
         <div className="mb-16">
           <ParticipationModule emotion={emotion} tribe={tribe} options={pageData.participationOptions} />
         </div>
-        {/* Actions */}
-        <div
-          className="flex items-center gap-4 pb-20"
->
+        {/* Actions — primary (Save) is solid in the tribe colour and
+            doubles as the page's identity moment; secondary stays
+            neutral so the focus stays on the primary call. */}
+        <div className="flex items-center gap-3 pb-20 flex-wrap">
           <SaveCollectionButton emotionId={emotion.id} accent={tribeColor} />
           <Link
             href="/atmosphere"
-            className="px-4 py-2 rounded-full border transition-all duration-300 hover:bg-white/4 text-sm text-ink-muted border-white/10"
-            style={{ fontFamily: "var(--font-technical)" }}
+            className="inline-flex items-center justify-center gap-2 rounded-full transition-transform duration-150 hover:scale-[1.02] min-h-[44px] px-5 py-2.5 text-sm border-[1.5px] border-album text-ink"
+            style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
 >
             Construir atmósfera →
           </Link>
