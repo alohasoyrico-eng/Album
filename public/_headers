@@ -1,0 +1,25 @@
+# Cloudflare Pages header rules.
+#
+# Why: with `output: "export"` we lose Next.js's `headers()` function,
+# so cache-control policy moves here. Cloudflare reads this file on
+# every response served from /public.
+#
+# Strategy mirrors what we had on Vercel:
+#   - HTML pages cached at the edge for a day (s-maxage) and in the
+#     browser for 5 min (max-age), with a 7-day SWR window so visitors
+#     never wait for a fresh render.
+#   - Static assets (JS / CSS / fonts / images shipped with the build)
+#     immutable for a year — they're filename-hashed by Next.
+
+/*
+  Cache-Control: public, max-age=300, s-maxage=86400, stale-while-revalidate=604800
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/_next/image/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts loaded from /public if any
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
