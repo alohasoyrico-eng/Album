@@ -1,8 +1,6 @@
 "use client";
-
 import { useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { TRIBE_MAP } from "@/data/ontology/tribes";
 import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
@@ -12,11 +10,9 @@ import { Chip } from "@/components/ui/Chip";
 import { resolveColor } from "@/data/colors/colors-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
 import type { ColorPageData } from "@/lib/server/colorPageData";
-
 interface ColorViewProps {
   pageData: ColorPageData;
 }
-
 const fadeIn = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
@@ -25,7 +21,6 @@ const fadeIn = {
     transition: { delay: i * 0.08, duration: 0.7, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] },
   }),
 };
-
 export function ColorView({ pageData }: ColorViewProps) {
   const {
     color,
@@ -48,23 +43,20 @@ export function ColorView({ pageData }: ColorViewProps) {
     motionVars,
   } = presentation;
   const titleFont = typeSet.display;
-
   useEffect(() => {
     trackEvent("editorial_page_opened", { entry: "color", colorId: color.id });
   }, [color.id]);
-
   // ─── Lens-aware reads through claims ──────────────────────────────────
   const readCtx = useReadContext();
   const resolvedColor = resolveColor(color.id, { lens: readCtx.lens });
   const liveDescription = resolvedColor?.description ?? color.description;
   const liveHellerQuote = resolvedColor?.hellerQuote ?? color.hellerQuote;
   const liveNameEs = resolvedColor?.nameEs ?? color.nameEs;
-
   return (
     <div
       className="relative min-h-screen bg-atmospheric overflow-hidden"
       style={{ paddingTop: "80px", backgroundColor: texture.baseColor, ...typeVars, ...inkOverrides, ...motionVars }}
-    >
+>
       {/* Generative texture stack */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
@@ -76,14 +68,13 @@ export function ColorView({ pageData }: ColorViewProps) {
         style={{ background: texture.overlay, mixBlendMode: texture.overlayBlend, opacity: 0.9 }}
         aria-hidden
       />
-
       <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
         {/* ─── Header ──────────────────────────────────────────────────── */}
-        <motion.div variants={fadeIn} initial="hidden" animate="visible" custom={0} className="mb-16">
+        <div className="mb-16">
           <p
             className="text-xs text-ink-faint mb-3"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.25em" }}
-          >
+>
             ATLAS CROMÁTICO
           </p>
           <div className="flex items-start gap-8 mb-6 flex-wrap">
@@ -104,19 +95,19 @@ export function ColorView({ pageData }: ColorViewProps) {
                   letterSpacing: "-0.04em",
                   textShadow: `0 0 40px ${color.hex}55`,
                 }}
-              >
+>
                 {liveNameEs}
               </h1>
               <p
                 className="text-xl text-ink-muted mb-2"
                 style={{ fontFamily: "var(--font-editorial)", fontStyle: "italic" }}
-              >
+>
                 {color.name}
               </p>
               <div
                 className="text-xs text-ink-faint flex flex-wrap gap-4 mt-4"
                 style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-              >
+>
                 <span>{color.hex.toUpperCase()}</span>
                 <span>HSL({color.hsl.h}°, {color.hsl.s}%, {color.hsl.l}%)</span>
                 {color.appreciatedRank && <span>· #{color.appreciatedRank} APRECIADO</span>}
@@ -124,52 +115,41 @@ export function ColorView({ pageData }: ColorViewProps) {
               </div>
             </div>
           </div>
-
           <p
             className="text-lg text-ink-muted/85 italic leading-relaxed max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
-          >
+>
             {liveDescription}
           </p>
-        </motion.div>
-
+        </div>
         {/* ─── Heller quote (pull-quote) ──────────────────────────────── */}
-        <motion.section
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          custom={1}
+        <section
           className="mb-16"
-        >
+>
           <figure className="relative pl-6 border-l-2" style={{ borderColor: `${color.hex}80` }}>
             <blockquote
               className="text-2xl md:text-3xl text-ink/90 leading-snug mb-3"
               style={{ fontFamily: "var(--font-literary)", fontStyle: "italic", fontWeight: 300 }}
-            >
+>
               "{liveHellerQuote}"
             </blockquote>
             <figcaption
               className="text-xs text-ink-faint"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}
-            >
+>
               — EVA HELLER, PSICOLOGÍA DEL COLOR
             </figcaption>
           </figure>
-        </motion.section>
-
+        </section>
         {/* ─── Cultural meanings + Symbolism ──────────────────────────── */}
-        <motion.section
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          custom={2}
+        <section
           className="mb-16 grid md:grid-cols-2 gap-8"
-        >
+>
           <div>
             <h2
               className="text-xs text-ink-faint mb-4"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               SIGNIFICADOS CULTURALES
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -182,7 +162,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                     border: `1px solid ${color.hex}30`,
                     fontFamily: "var(--font-editorial)",
                   }}
-                >
+>
                   {m}
                 </span>
               ))}
@@ -192,7 +172,7 @@ export function ColorView({ pageData }: ColorViewProps) {
             <h2
               className="text-xs text-ink-faint mb-4"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               SIMBOLISMO
             </h2>
             <div className="flex flex-wrap gap-2">
@@ -206,61 +186,46 @@ export function ColorView({ pageData }: ColorViewProps) {
                     fontFamily: "var(--font-editorial)",
                     fontStyle: "italic",
                   }}
-                >
+>
                   {s}
                 </span>
               ))}
             </div>
           </div>
-        </motion.section>
-
+        </section>
         {/* ─── Resonance profile ──────────────────────────────────────── */}
-        <motion.section
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          custom={3}
+        <section
           className="mb-16"
-        >
+>
           <h2
             className="text-xs text-ink-faint mb-6"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-          >
+>
             PERFIL DE RESONANCIA
           </h2>
           <ResonanceProfile resonance={color.resonance} color={color.hex} />
-        </motion.section>
-
+        </section>
         {/* ─── Heller ranking focused on this color ───────────────────── */}
-        <motion.section
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          custom={4}
+        <section
           className="mb-16"
-        >
+>
           <HellerRanking focusColorId={color.id} title={`${color.nameEs} en el ranking de Heller`} />
-        </motion.section>
-
+        </section>
         {/* ─── Primary emotions ───────────────────────────────────────── */}
-        {primaryEmotions.length > 0 && (
-          <motion.section
-            variants={fadeIn}
-            initial="hidden"
-            animate="visible"
-            custom={5}
+        {primaryEmotions.length> 0 && (
+          <section
             className="mb-16"
-          >
+>
             <h2
               className="text-xs text-ink-faint mb-2"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               EMOCIONES PRIMARIAS
             </h2>
             <p
               className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               Las emociones que este color encarna con mayor coincidencia colectiva.
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -274,7 +239,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                     style={{
                       borderColor: `${color.hex}20`,
                                           }}
-                  >
+>
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0 transition-all duration-300 group-hover:scale-125"
                       style={{
@@ -286,14 +251,14 @@ export function ColorView({ pageData }: ColorViewProps) {
                       <p
                         className="text-base text-ink/90 group-hover:text-ink transition-colors"
                         style={{ fontFamily: "var(--font-editorial)" }}
-                      >
+>
                         {emo.name}
                       </p>
                       {tribe && (
                         <p
                           className="text-[0.6rem] text-ink-faint mt-0.5"
                           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-                        >
+>
                           {tribe.name.toUpperCase()}
                         </p>
                       )}
@@ -303,30 +268,25 @@ export function ColorView({ pageData }: ColorViewProps) {
                 );
               })}
             </div>
-          </motion.section>
+          </section>
         )}
-
         {/* ─── Contradictory + resonant emotions ──────────────────────── */}
-        {(contradictoryEmotions.length > 0 || resonantEmotions.length > 0) && (
-          <motion.section
-            variants={fadeIn}
-            initial="hidden"
-            animate="visible"
-            custom={6}
+        {(contradictoryEmotions.length> 0 || resonantEmotions.length> 0) && (
+          <section
             className="mb-16 grid md:grid-cols-2 gap-8"
-          >
-            {contradictoryEmotions.length > 0 && (
+>
+            {contradictoryEmotions.length> 0 && (
               <div>
                 <h2
                   className="text-xs text-ink-faint mb-3"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-                >
+>
                   EMOCIONES CONTRADICTORIAS
                 </h2>
                 <p
                   className="text-xs text-ink-muted/65 italic mb-4"
                   style={{ fontFamily: "var(--font-literary)" }}
-                >
+>
                   Emociones que este color rara vez evoca; relación de tensión semántica.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -341,26 +301,25 @@ export function ColorView({ pageData }: ColorViewProps) {
                         fontFamily: "var(--font-editorial)",
                         fontStyle: "italic",
                       }}
-                    >
+>
                       {emo.name}
                     </Link>
                   ))}
                 </div>
               </div>
             )}
-
-            {resonantEmotions.length > 0 && (
+            {resonantEmotions.length> 0 && (
               <div>
                 <h2
                   className="text-xs text-ink-faint mb-3"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-                >
+>
                   OTRAS RESONANCIAS
                 </h2>
                 <p
                   className="text-xs text-ink-muted/65 italic mb-4"
                   style={{ fontFamily: "var(--font-literary)" }}
-                >
+>
                   Emociones que reconocen este color como parte de su atmósfera.
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -374,35 +333,30 @@ export function ColorView({ pageData }: ColorViewProps) {
                         border: `1px solid ${color.hex}25`,
                         fontFamily: "var(--font-editorial)",
                       }}
-                    >
+>
                       {emo.name}
                     </Link>
                   ))}
                 </div>
               </div>
             )}
-          </motion.section>
+          </section>
         )}
-
         {/* ─── Artworks resonating with this color ────────────────────── */}
-        {resonantArtworks.length > 0 && (
-          <motion.section
-            variants={fadeIn}
-            initial="hidden"
-            animate="visible"
-            custom={7}
+        {resonantArtworks.length> 0 && (
+          <section
             className="mb-16"
-          >
+>
             <h2
               className="text-xs text-ink-faint mb-2"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               ARTE RESONANTE
             </h2>
             <p
               className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               Obras donde este color juega un papel estructural en la atmósfera.
             </p>
             <div className="grid md:grid-cols-2 gap-4">
@@ -413,7 +367,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                   style={{
                     borderColor: `${color.hex}25`,
                                       }}
-                >
+>
                   {art.imageUrl && (
                     <CulturalImage
                       src={art.imageUrl}
@@ -429,17 +383,17 @@ export function ColorView({ pageData }: ColorViewProps) {
                     <p
                       className="text-sm text-ink/90 leading-tight mb-1"
                       style={{ fontFamily: "var(--font-editorial)" }}
-                    >
+>
                       {art.title}
                     </p>
                     <p
                       className="text-[0.65rem] text-ink-faint mb-2"
                       style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-                    >
+>
                       {art.artist.toUpperCase()} · {art.year}
                     </p>
                     {/* Dominant color palette extracted from the artwork */}
-                    {art.dominantColors.length > 0 && (
+                    {art.dominantColors.length> 0 && (
                       <div className="flex gap-1 mb-2">
                         {art.dominantColors.slice(0, 5).map((c) => (
                           <div
@@ -455,28 +409,23 @@ export function ColorView({ pageData }: ColorViewProps) {
                 </article>
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
-
         {/* ─── Resonant typography ─────────────────────────────────────── */}
-        {resonantFonts.length > 0 && (
-          <motion.section
-            variants={fadeIn}
-            initial="hidden"
-            animate="visible"
-            custom={8}
+        {resonantFonts.length> 0 && (
+          <section
             className="mb-16"
-          >
+>
             <h2
               className="text-xs text-ink-faint mb-2"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               TIPOGRAFÍAS RESONANTES
             </h2>
             <p
               className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               Tipografías que comparten emociones primarias con este color.
             </p>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -487,39 +436,34 @@ export function ColorView({ pageData }: ColorViewProps) {
                   style={{
                     borderColor: `${color.hex}20`,
                                       }}
-                >
+>
                   <p
                     className="text-3xl text-ink/95 leading-none mb-2"
                     style={{ fontFamily: `'${font.googleFontFamily}', serif`, fontWeight: 400 }}
-                  >
+>
                     {font.specimen}
                   </p>
                   <p
                     className="text-[0.65rem] text-ink-faint"
                     style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-                  >
+>
                     {font.name.toUpperCase()} · {font.category.toUpperCase()}
                   </p>
                   <p
                     className="text-xs text-ink-muted/65 italic mt-2"
                     style={{ fontFamily: "var(--font-literary)" }}
-                  >
+>
                     {font.emotionalTone}
                   </p>
                 </div>
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
-
         {/* ─── Navigation ─────────────────────────────────────────────── */}
-        <motion.div
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          custom={9}
+        <div
           className="flex items-center justify-between pt-8 mt-8 border-t border-white/5"
-        >
+>
           {prev ? (
             <Link href={`/color/${prev.id}`} className="group flex items-center gap-3">
               <span className="text-ink-faint group-hover:text-ink transition-colors">←</span>
@@ -528,7 +472,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                 <span
                   className="text-sm text-ink/80 group-hover:text-ink transition-colors"
                   style={{ fontFamily: "var(--font-editorial)" }}
-                >
+>
                   {prev.nameEs}
                 </span>
               </div>
@@ -538,7 +482,7 @@ export function ColorView({ pageData }: ColorViewProps) {
             href="/colors"
             className="text-xs text-ink-faint hover:text-ink transition-colors"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-          >
+>
             ← Atlas cromático
           </Link>
           {next ? (
@@ -547,7 +491,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                 <span
                   className="text-sm text-ink/80 group-hover:text-ink transition-colors"
                   style={{ fontFamily: "var(--font-editorial)" }}
-                >
+>
                   {next.nameEs}
                 </span>
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: next.hex }} />
@@ -555,7 +499,7 @@ export function ColorView({ pageData }: ColorViewProps) {
               <span className="text-ink-faint group-hover:text-ink transition-colors">→</span>
             </Link>
           ) : <div />}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -514,3 +514,25 @@ html[data-theme="dawn"] .glass-strong {
   }
 }
 
+/* ─── Reveal animations (replacing framer-motion) ──────────────────
+ *
+ * Before: every section wrapped in `<motion.div variants={reveal}/>`
+ * — framer-motion ran a setup pass at hydration for every wrapper.
+ * Now: a single keyframe + utility class. Browsers run it on the
+ * compositor with zero React involvement.
+ *
+ * Honours `prefers-reduced-motion`: with reduce, elements appear
+ * instantly with no transform — same end state, no motion. */
+@keyframes album-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.album-fade-in {
+  animation: album-fade-in 500ms ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-fade-in {
+    animation: none;
+  }
+}
+

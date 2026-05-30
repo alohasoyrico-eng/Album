@@ -1,5 +1,4 @@
 "use client";
-
 /**
  * Full-screen node preview — replaces the small floating card.
  *
@@ -10,10 +9,8 @@
  *
  * Closes on: × button, Esc, click on backdrop, or selecting another node.
  */
-
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { EMOTION_MAP, EMOTIONS } from "@/data/ontology/emotions";
 import { COLOR_MAP } from "@/data/colors/colorResonance";
 import { ARTWORK_MAP } from "@/data/seed/artworks";
@@ -40,13 +37,11 @@ import { useReadContext } from "@/lib/ReadContextProvider";
 import type { ReadContext } from "@/types/claims";
 import type { MapNode, ResonanceAxes } from "@/types";
 import { ResonanceProfile } from "@/components/editorial/ResonanceProfile";
-
 interface Props {
   nodeId: string;
   nodes: MapNode[];
   onClose: () => void;
 }
-
 interface ResolvedEntity {
   title: string;
   subtitle: string;
@@ -60,17 +55,14 @@ interface ResolvedEntity {
   /** Optional badge labels above the title. */
   badges: string[];
 }
-
 function badges(...xs: Array<string | undefined>): string[] {
   return xs.filter((x): x is string => Boolean(x && x.length));
 }
-
 function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
   // Loose accessor — every cultural seed has slightly different fields.
   // We pull the common visual ones with optional chaining, which keeps the
   // resolver compact and tolerant to future schema growth.
   const any = (m: Map<string, unknown>) => m.get(node.id) as Record<string, unknown> | undefined;
-
   if (node.type === "emotion") {
     const e = EMOTION_MAP.get(node.id);
     if (!e) return null;
@@ -103,7 +95,6 @@ function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
       badges: ["Atlas cromático"],
     };
   }
-
   const item = (() => {
     switch (node.type) {
       case "artwork":      return any(ARTWORK_MAP as unknown as Map<string, unknown>);
@@ -122,7 +113,6 @@ function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
     }
   })();
   if (!item) return null;
-
   const KIND_LABEL: Record<string, string> = {
     artwork: "Pintura", music: "Música", film: "Cine", poem: "Poesía",
     sculpture: "Escultura", dance: "Danza", architecture: "Arquitectura",
@@ -135,7 +125,6 @@ function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
     photography: ICON.photography, literature: ICON.literature, ritual: ICON.ritual,
     theater: ICON.theater, typography: ICON.typography,
   };
-
   const s = item as Record<string, unknown>;
   const author = (s.artist || s.author || s.director || s.choreographer
                   || s.architect || s.photographer || s.googleFontFamily || "") as string;
@@ -144,7 +133,6 @@ function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
   const description = (s.description || s.poeticDescription || s.excerpt
                        || s.overview || s.fullText || "") as string;
   const culture = (s.culture || s.country || s.language || s.category || "") as string;
-
   return {
     title,
     subtitle: badges(author, year).join(" · "),
@@ -156,14 +144,12 @@ function resolve(node: MapNode, ctx: ReadContext = {}): ResolvedEntity | null {
     badges: badges(KIND_LABEL[node.type], culture),
   };
 }
-
 export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
   const node = nodes.find((n) => n.id === nodeId);
   // Lens-aware: when the visitor pins a perspective, the preview
   // re-resolves entity fields through the consensus engine.
   const readCtx = useReadContext();
   const entity = node ? resolve(node, { lens: readCtx.lens, userId: readCtx.userId }) : null;
-
   // ─── Emergent style for this entity (typeset, texture, ink) ───────────
   const typeSet = useMemo(
     () => entity ? deriveTypeSet(entity.resonance, node?.type === "emotion" ? node.id : undefined) : null,
@@ -183,7 +169,6 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
     () => entity ? pickInkFor(entity.hex) : null,
     [entity],
   );
-
   // Esc to close (the map also handles this but a local listener is more
   // responsive when the full preview is mounted)
   useEffect(() => {
@@ -193,7 +178,6 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
   // Build a small set of "resonant emotions" for cultural items — top 3 by
   // declared resonance, just to give the user a path back into the field.
   const linkedEmotions = useMemo(() => {
@@ -205,38 +189,28 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
     if (Array.isArray(raw.emotionResonance)) ids.push(...raw.emotionResonance.slice(0, 5));
     return ids.map((id) => EMOTIONS.find((e) => e.id === id)).filter(Boolean) as typeof EMOTIONS;
   }, [entity, node]);
-
   return (
-    <AnimatePresence>
+    <>
       {entity && (
-        <motion.div
+        <div
           className="fixed inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
           onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
           style={{ ...typeVars, ...inkOverrides }}
-        >
+>
           {/* Backdrop click-to-close */}
           <div
             aria-hidden
             className="absolute inset-0"
             style={{ background: "rgba(5,5,8,0.55)", backdropFilter: "blur(12px)" }}
           />
-
-          <motion.div
-            initial={{ y: 16, scale: 0.985, opacity: 0 }}
-            animate={{ y: 0, scale: 1, opacity: 1 }}
-            exit={{ y: 16, scale: 0.985, opacity: 0 }}
-            transition={{ duration: 0.34, ease: [0.16, 1, 0.3, 1] }}
+          <div
             className="relative w-full h-full overflow-hidden"
             style={{
               backgroundColor: entity.hex,
               color: inkScheme?.ink ?? "#000",
             }}
             onClick={(e) => e.stopPropagation()}
-          >
+>
             {/* Texture layer over the solid colour for depth */}
             {texture && (
               <>
@@ -252,7 +226,6 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                 />
               </>
             )}
-
             {/* Close affordance */}
             <button
               type="button"
@@ -260,10 +233,9 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
               aria-label="Cerrar"
               className="icon icon-lg absolute top-6 right-6 z-10 w-12 h-12 flex items-center justify-center rounded-full hover:bg-black/[0.06] transition-colors"
               style={{ color: inkScheme?.ink, border: `1px solid ${inkScheme?.inkMuted}33` }}
-            >
+>
               close
             </button>
-
             {/* Content column */}
             <div className="relative z-[1] h-full flex items-center justify-center px-6 md:px-12 lg:px-20 py-20 md:py-24 overflow-y-auto">
               <div className="w-full max-w-4xl mx-auto">
@@ -283,12 +255,11 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                         fontFamily: "var(--font-technical)",
                         letterSpacing: "0.18em",
                       }}
-                    >
+>
                       {b}
                     </span>
                   ))}
                 </div>
-
                 {/* Title in the emergent display font */}
                 <h2
                   className="leading-none mb-5"
@@ -299,10 +270,9 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                     letterSpacing: "-0.025em",
                     color: inkScheme?.ink,
                   }}
-                >
+>
                   {entity.title}
                 </h2>
-
                 <p
                   className="text-base md:text-lg mb-10"
                   style={{
@@ -310,10 +280,9 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                     letterSpacing: "0.08em",
                     color: inkScheme?.inkMuted,
                   }}
-                >
+>
                   {entity.subtitle.toUpperCase()}
                 </p>
-
                 {entity.description && (
                   <p
                     className="text-xl md:text-2xl italic max-w-3xl mb-12 leading-relaxed"
@@ -321,31 +290,29 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                       fontFamily: `"${typeSet?.literary?.googleFontFamily ?? 'EB Garamond'}", Georgia, serif`,
                       color: blendHex(entity.hex, inkScheme?.ink ?? "#000", 0.82),
                     }}
-                  >
+>
                     {entity.description}
                   </p>
                 )}
-
                 {/* Resonance profile — larger bars on full-screen */}
                 <div className="mb-12">
                   <p
                     className="text-xs mb-4"
                     style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em", color: inkScheme?.inkMuted }}
-                  >
+>
                     PERFIL DE RESONANCIA
                   </p>
                   <div style={{ color: inkScheme?.ink }}>
                     <ResonanceProfile resonance={entity.resonance} color={inkScheme?.ink ?? "#000"} />
                   </div>
                 </div>
-
                 {/* Linked emotions for cultural items */}
-                {linkedEmotions.length > 0 && (
+                {linkedEmotions.length> 0 && (
                   <div className="mb-10">
                     <p
                       className="text-xs mb-3"
                       style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em", color: inkScheme?.inkMuted }}
-                    >
+>
                       RESUENA CON
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -361,14 +328,13 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                             color: inkScheme?.ink,
                             fontFamily: "var(--font-editorial)",
                           }}
-                        >
+>
                           {e.name}
                         </Link>
                       ))}
                     </div>
                   </div>
                 )}
-
                 {/* CTA */}
                 {entity.detailHref && (
                   <Link
@@ -381,16 +347,16 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                       fontFamily: "var(--font-technical)",
                       letterSpacing: "0.1em",
                     }}
-                  >
+>
                     EXPLORAR COMPLETO
                     <span className="icon icon-md">arrow_forward</span>
                   </Link>
                 )}
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

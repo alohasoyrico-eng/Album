@@ -1,5 +1,4 @@
 "use client";
-
 /**
  * EmergentResonance — purely presentational since the perf refactor.
  *
@@ -12,19 +11,15 @@
  * Switching modes just reads a different bucket from the prop — no
  * recomputation, no allocations, no engine round-trip.
  */
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { AXIS_LABEL_ES } from "@/lib/resonance-vector";
 import type { ResonanceAxes } from "@/types";
 import type {
   SerialisableHit,
   EmergentHitsByMode,
 } from "@/lib/server/emotionPageData";
-
 type ResonanceMode = "expected" | "adjacent" | "anomaly" | "mixed";
-
 interface EmergentResonanceProps {
   /** Preferred: server-pre-computed hits, one bucket per mode. When
    * supplied, this component imports zero seed catalogues. */
@@ -40,7 +35,6 @@ interface EmergentResonanceProps {
   /** Title for the section (default copy below). */
   title?: string;
 }
-
 const MODE_LABEL: Record<ResonanceMode, { es: string; description: string }> = {
   mixed: {
     es: "drift",
@@ -63,7 +57,6 @@ const MODE_LABEL: Record<ResonanceMode, { es: string; description: string }> = {
       "Similitud global baja pero un eje compartido muy fuerte. Aquí emergen las proximidades emocionalmente sorprendentes.",
   },
 };
-
 const KIND_GLYPH: Record<string, string> = {
   emotion:      "●",
   color:        "■",
@@ -80,7 +73,6 @@ const KIND_GLYPH: Record<string, string> = {
   ritual:       "◯",
   theater:      "✚",
 };
-
 const KIND_LABEL: Record<string, string> = {
   emotion:      "Emoción",
   color:        "Color",
@@ -97,7 +89,6 @@ const KIND_LABEL: Record<string, string> = {
   ritual:       "Ritual",
   theater:      "Teatro",
 };
-
 export function EmergentResonance({
   hitsByMode,
   resonance,
@@ -109,7 +100,6 @@ export function EmergentResonance({
   // Legacy live-mode state: holds engine-computed hits per mode once the
   // lazy import resolves. Pre-computed mode bypasses this entirely.
   const [liveHits, setLiveHits] = useState<EmergentHitsByMode | null>(null);
-
   useEffect(() => {
     if (hitsByMode || !resonance) return;
     let cancelled = false;
@@ -140,17 +130,14 @@ export function EmergentResonance({
     })();
     return () => { cancelled = true; };
   }, [hitsByMode, resonance, excludeId]);
-
   const activeHits = hitsByMode ?? liveHits;
   const hits = activeHits?.[mode] ?? [];
-
   // Group hits by their per-hit band for the visual layout.
   const banded = {
     expected: hits.filter((h) => h.mode === "expected"),
     adjacent: hits.filter((h) => h.mode === "adjacent"),
     anomaly:  hits.filter((h) => h.mode === "anomaly"),
   };
-
   return (
     <section className="mb-16">
       <header className="mb-6">
@@ -158,7 +145,7 @@ export function EmergentResonance({
           <h2
             className="text-xs text-ink-faint"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-          >
+>
             {title ?? "RESONANCIA EMERGENTE"}
           </h2>
           <div className="flex gap-1">
@@ -178,7 +165,7 @@ export function EmergentResonance({
                     border: "1px solid",
                   }}
                   title={MODE_LABEL[m].description}
-                >
+>
                   {MODE_LABEL[m].es.toUpperCase()}
                 </button>
               );
@@ -188,23 +175,18 @@ export function EmergentResonance({
         <p
           className="text-sm text-ink-muted/70 italic max-w-2xl leading-relaxed"
           style={{ fontFamily: "var(--font-literary)" }}
-        >
+>
           {MODE_LABEL[mode].description} El sistema no propone estos vínculos;
           los <strong>infiere</strong> a partir de la similitud de los vectores
           de resonancia entre todas las disciplinas del catálogo.
         </p>
       </header>
-
-      <AnimatePresence mode="popLayout">
-        <motion.div
+      <>
+        <div
           key={mode}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className="grid gap-8"
-        >
-          {(mode === "mixed" || mode === "expected") && banded.expected.length > 0 && (
+>
+          {(mode === "mixed" || mode === "expected") && banded.expected.length> 0 && (
             <BandView
               title="VECINDARIO ESPERADO"
               subtitle="Donde la gravedad apunta directamente."
@@ -213,7 +195,7 @@ export function EmergentResonance({
               showStaggerDelay
             />
           )}
-          {(mode === "mixed" || mode === "adjacent") && banded.adjacent.length > 0 && (
+          {(mode === "mixed" || mode === "adjacent") && banded.adjacent.length> 0 && (
             <BandView
               title="ZONA DE DRIFT"
               subtitle="Similitud media. La resonancia empieza a doblar."
@@ -222,7 +204,7 @@ export function EmergentResonance({
               showStaggerDelay
             />
           )}
-          {(mode === "mixed" || mode === "anomaly") && banded.anomaly.length > 0 && (
+          {(mode === "mixed" || mode === "anomaly") && banded.anomaly.length> 0 && (
             <BandView
               title="ANOMALÍA · PROXIMIDAD INESPERADA"
               subtitle="Distancia global pero un eje compartido fuerte. Aquí emergen las sorpresas."
@@ -236,20 +218,18 @@ export function EmergentResonance({
             <p
               className="text-sm text-ink-muted/60 italic"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               No emergen vecinos en este modo — el espacio de resonancia
               alrededor de esta entidad es escaso o muy denso. Prueba otro
               modo.
             </p>
           )}
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      </>
     </section>
   );
 }
-
 // ─── Band view ────────────────────────────────────────────────────────────────
-
 function BandView({
   title,
   subtitle,
@@ -275,13 +255,13 @@ function BandView({
             letterSpacing: "0.2em",
             color: isAnomaly ? accentColor : "var(--album-ink-faint)",
           }}
-        >
+>
           {title}
         </p>
         <p
           className="text-xs text-ink-muted/65 italic"
           style={{ fontFamily: "var(--font-literary)" }}
-        >
+>
           {subtitle}
         </p>
       </div>
@@ -298,20 +278,14 @@ function BandView({
     </div>
   );
 }
-
 // ─── Single hit card ──────────────────────────────────────────────────────────
-
 function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColor: string; delay: number }) {
   const { entity, similarity, sharedAxes, mode } = hit;
   const topSharedAxes = sharedAxes.slice(0, 3);
   const Tag: React.ElementType = entity.href ? Link : "div";
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-    >
+    <div
+>
       <Tag
         {...(entity.href ? { href: entity.href } : {})}
         className="em-card group block rounded-xl border p-4 transition-all duration-300 hover:bg-white/[0.015]"
@@ -319,7 +293,7 @@ function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColo
           borderColor: mode === "anomaly" ? `${accentColor}40` : "var(--album-border)",
           backgroundColor: mode === "anomaly" ? `${accentColor}06` : "transparent",
         }}
-      >
+>
         <div className="flex items-start gap-3 mb-2">
           <div
             className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
@@ -330,20 +304,20 @@ function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColo
               fontSize: "0.9rem",
             }}
             aria-hidden
-          >
+>
             {KIND_GLYPH[entity.kind] ?? "·"}
           </div>
           <div className="flex-1 min-w-0">
             <p
               className="text-sm text-ink/90 leading-tight group-hover:text-ink transition-colors"
               style={{ fontFamily: "var(--font-editorial)" }}
-            >
+>
               {entity.label}
             </p>
             <p
               className="text-[0.6rem] text-ink-faint mt-0.5"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-            >
+>
               {(KIND_LABEL[entity.kind] ?? entity.kind).toUpperCase()}
               {entity.creator ? ` · ${entity.creator}` : ""}
               {entity.year ? ` · ${entity.year}` : ""}
@@ -353,25 +327,23 @@ function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColo
             className="text-[0.55rem] text-ink-faint tabular-nums flex-shrink-0"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
             title={`Similitud coseno: ${similarity.toFixed(3)}`}
-          >
+>
             {Math.round(similarity * 100)}%
           </span>
         </div>
-
         {entity.description && (
           <p
             className="text-xs text-ink-muted/65 italic leading-relaxed mb-3 line-clamp-2"
             style={{ fontFamily: "var(--font-literary)" }}
-          >
+>
             {entity.description}
           </p>
         )}
-
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className="text-[0.55rem] text-ink-faint"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}
-          >
+>
             RESUENA POR
           </span>
           {topSharedAxes.map((a) => (
@@ -383,12 +355,12 @@ function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColo
                 fontFamily: "var(--font-editorial)",
               }}
               title={`Ambos comparten ${AXIS_LABEL_ES[a.axis as keyof typeof AXIS_LABEL_ES] ?? a.axis} en ${Math.round(a.shared * 100)}%`}
-            >
+>
               {AXIS_LABEL_ES[a.axis as keyof typeof AXIS_LABEL_ES] ?? a.axis}
             </span>
           ))}
         </div>
       </Tag>
-    </motion.div>
+    </div>
   );
 }

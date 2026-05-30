@@ -1,14 +1,11 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
 import { ThemeToggle } from "./ThemeToggle";
 import { LensSwitcher } from "./LensSwitcher";
-
 // SearchPalette pulls in the unified search index — every emotion, color,
 // typography, artwork, etc. (~1.3 k entries). That index is useless until
 // the user actually opens the palette, so we lazy-load it. The trigger
@@ -20,19 +17,16 @@ const SearchPalette = dynamic(
   () => import("./SearchPalette").then((m) => m.SearchPalette),
   { ssr: false },
 );
-
 const NAV_ITEMS = [
   { href: "/", label: "Mapa", description: "Constelación semántica" },
   { href: "/colors", label: "Color", description: "Atlas cromático Heller" },
   { href: "/atmosphere", label: "Atmósfera", description: "Constructor de atmósferas" },
   { href: "/collection", label: "Colección", description: "Archivo personal" },
 ];
-
 export function Navigation() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-
   // Cmd/Ctrl+K opens the search palette from anywhere in the app
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,7 +42,6 @@ export function Navigation() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 mix-blend-normal">
@@ -64,11 +57,10 @@ export function Navigation() {
             <span
               className="text-display text-xl text-ink/80 group-hover:text-ink transition-colors duration-300"
               style={{ fontFamily: "var(--font-display)", fontWeight: 300, letterSpacing: "-0.03em" }}
-            >
+>
               Álbum
             </span>
           </Link>
-
           {/* Search trigger — Cmd+K shortcut, click to open.
               Hidden on the home page: the hero already shows a larger,
               more prominent search field so two triggers within 200px of
@@ -79,22 +71,21 @@ export function Navigation() {
             aria-label="Buscar en Álbum"
             className={`${pathname === "/" ? "hidden" : "hidden md:flex"} items-center gap-2 ml-4 px-3 py-1.5 rounded-full border border-white/8 hover:border-white/16 hover:bg-white/[0.03] transition-all`}
             style={{ minWidth: "220px" }}
-          >
+>
             <span className="icon icon-md text-ink-faint">search</span>
             <span
               className="flex-1 text-left text-ink-faint"
               style={{ fontFamily: "var(--font-editorial)", fontSize: "0.78rem" }}
-            >
+>
               Buscar emociones, obras…
             </span>
             <span
               className="text-[0.55rem] text-ink-faint px-1.5 py-0.5 rounded border border-white/10"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.12em" }}
-            >
+>
               ⌘K
             </span>
           </button>
-
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map((item) => (
@@ -109,7 +100,7 @@ export function Navigation() {
                     : "text-ink-muted hover:text-ink border border-transparent hover:border-white/8"
                 )}
                 style={{ fontFamily: "var(--font-technical)", fontSize: "0.8rem" }}
-              >
+>
                 {item.label}
               </Link>
             ))}
@@ -118,33 +109,26 @@ export function Navigation() {
               <ThemeToggle />
             </div>
           </div>
-
           {/* Mobile menu toggle */}
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 group"
             aria-label="Menu"
-          >
+>
             <span className={clsx("w-5 h-px bg-ink-muted transition-all duration-300 group-hover:bg-ink", isOpen && "rotate-45 translate-y-1")} />
             <span className={clsx("w-5 h-px bg-ink-muted transition-all duration-300 group-hover:bg-ink", isOpen && "opacity-0")} />
             <span className={clsx("w-5 h-px bg-ink-muted transition-all duration-300 group-hover:bg-ink", isOpen && "-rotate-45 -translate-y-1")} />
           </button>
         </div>
-
         {/* Subtle separator */}
         <div className="h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
       </nav>
-
       {/* Mobile menu */}
-      <AnimatePresence>
+      <>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
+          <div
             className="fixed top-16 left-0 right-0 z-40 glass-strong border-b border-white/6 md:hidden"
-          >
+>
             <div className="px-6 py-4 flex flex-col gap-1">
               {NAV_ITEMS.map((item) => (
                 <Link
@@ -157,16 +141,15 @@ export function Navigation() {
                       ? "text-amber bg-amber/8"
                       : "text-ink-muted hover:text-ink hover:bg-white/4"
                   )}
-                >
+>
                   <span style={{ fontFamily: "var(--font-technical)", fontSize: "0.875rem" }}>{item.label}</span>
                   <span className="text-xs text-ink-faint">{item.description}</span>
                 </Link>
               ))}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-
+      </>
       {/* Global search palette — Cmd/Ctrl+K or click the search trigger.
           Mount only after the user actually wants to search: keeps the
           ~250-300 KB search-index chunk out of every page's First Load. */}

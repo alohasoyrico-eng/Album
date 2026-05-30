@@ -1,8 +1,6 @@
 "use client";
-
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
 import * as d3 from "d3";
 import { useMapStore } from "@/lib/store";
 import { EMOTIONS, EMOTION_MAP } from "@/data/ontology/emotions";
@@ -29,7 +27,6 @@ import { emotionColor } from "@/lib/chromatics";
 import { buildVector, cosineSimilarity } from "@/lib/resonance-vector";
 import { emotionMotion, deriveMotion } from "@/lib/emotionMotion";
 import { entityColor } from "@/lib/entityColor";
-
 // Universal colour resolver: every cultural node (and every future
 // non-emotion entity) goes through entityColor() — cosine top-K against
 // the 224-colour catalogue + id-fingerprint pick. Guarantees catalogue
@@ -39,9 +36,7 @@ function culturalColor(resonance: import("@/types").ResonanceAxes, id: string): 
   return entityColor(resonance, id);
 }
 import type { MapNode, MapLink, ResonanceAxes } from "@/types";
-
 // ─── Build graph data ─────────────────────────────────────────────────────────
-
 function buildMapData() {
   const nodes: MapNode[] = [
     ...EMOTIONS.map((e) => {
@@ -133,10 +128,9 @@ function buildMapData() {
       color: culturalColor(t.resonance, t.id), resonance: t.resonance, weight: 0.8,
     })),
   ];
-
   const nodeIds = new Set(nodes.map((n) => n.id));
   const curatedLinks: MapLink[] = RESONANCE_RELATIONSHIPS.filter(
-    (r) => r.strength > 0.65 && nodeIds.has(r.source) && nodeIds.has(r.target)
+    (r) => r.strength> 0.65 && nodeIds.has(r.source) && nodeIds.has(r.target)
   ).map((r) => ({
     source: r.source,
     target: r.target,
@@ -144,16 +138,13 @@ function buildMapData() {
     ambiguity: r.ambiguity,
     resonanceType: r.resonanceType,
   }));
-
   // ─── Emergent links — inferred by cosine similarity ─────────────────────
   // For each pair of visible nodes (where both have a resonance), compute
   // cosine similarity in the unified vector space. Keep only the top K
   // strongest connections PER node so the map doesn't drown in links.
   const emergentLinks: MapLink[] = computeEmergentLinks(nodes, 4, 0.86);
-
   return { nodes, curatedLinks, emergentLinks };
 }
-
 /**
  * Compute emergent links: cosine-similarity neighborhoods among visible nodes.
  *
@@ -169,15 +160,13 @@ function computeEmergentLinks(
   const withVectors = nodes
     .filter((n): n is MapNode & { resonance: ResonanceAxes } => Boolean(n.resonance))
     .map((n) => ({ node: n, vector: buildVector(n.resonance) }));
-
   type Edge = { source: string; target: string; sim: number };
   const edges: Edge[] = [];
-
   // Compute all pairs (218^2 ≈ 47000 ops; fast for a single pass)
   for (let i = 0; i < withVectors.length; i++) {
     for (let j = i + 1; j < withVectors.length; j++) {
       const sim = cosineSimilarity(withVectors[i].vector, withVectors[j].vector);
-      if (sim >= minSim) {
+      if (sim>= minSim) {
         edges.push({
           source: withVectors[i].node.id,
           target: withVectors[j].node.id,
@@ -193,7 +182,7 @@ function computeEmergentLinks(
   for (const e of edges) {
     const sCount = perNodeCount[e.source] ?? 0;
     const tCount = perNodeCount[e.target] ?? 0;
-    if (sCount >= topK || tCount >= topK) continue;
+    if (sCount>= topK || tCount>= topK) continue;
     perNodeCount[e.source] = sCount + 1;
     perNodeCount[e.target] = tCount + 1;
     kept.push({
@@ -207,7 +196,6 @@ function computeEmergentLinks(
   }
   return kept;
 }
-
 // Per-node radius is recomputed every animation tick on ~1300 nodes; with
 // deriveMotion()/emotionMotion() inside, that's the hottest path on the
 // page. Cache by node id (stable for the session).
@@ -227,7 +215,6 @@ function nodeRadius(node: MapNode): number {
   _radiusCache.set(node.id, r);
   return r;
 }
-
 // Glyph per non-emotion / non-color type. Each discipline gets its own
 // Material Symbols Outlined icon, rendered via OpenType ligatures inside
 // the SVG <text> elements. Emotions and colors stay as bare circles.
@@ -245,9 +232,7 @@ const GLYPH: Partial<Record<string, string>> = {
   ritual:       ICON.ritual,
   theater:      ICON.theater,
 };
-
 // ─── Component ────────────────────────────────────────────────────────────────
-
 export function SemanticMap() {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<MapNode, MapLink> | null>(null);
@@ -262,7 +247,6 @@ export function SemanticMap() {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
-
   // ─── Measure container ────────────────────────────────────────────────────
   useEffect(() => {
     const update = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
@@ -270,7 +254,6 @@ export function SemanticMap() {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
-
   // ─── D3 force simulation (structural layer) ───────────────────────────────
   // The simulation uses CURATED links for structural pull (these are the
   // canonical Marina-era relationships). EMERGENT links are rendered on top
@@ -278,7 +261,6 @@ export function SemanticMap() {
   useEffect(() => {
     if (!dimensions.w) return;
     const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
-
     const sim = d3
       .forceSimulation<MapNode, MapLink>(rawNodes)
       .force("link", d3.forceLink<MapNode, MapLink>(rawCurated)
@@ -294,20 +276,16 @@ export function SemanticMap() {
       .force("resonance-gravity", resonanceGravityForce(rawNodes))
       .alphaDecay(0.015)
       .velocityDecay(0.35);
-
     sim.on("tick", () => {
       setNodes([...rawNodes]);
       setLinks([...rawCurated]);
     });
-
     simulationRef.current = sim;
     setNodes(rawNodes);
     setLinks(rawCurated as MapLink[]);
     setEmergentLinks(rawEmergent as MapLink[]);
-
     return () => { sim.stop(); };
   }, [dimensions]);
-
   // ─── Personality animation loop (visual layer) ────────────────────────────
   useEffect(() => {
     let raf: number;
@@ -321,7 +299,7 @@ export function SemanticMap() {
     const step = (t: number) => {
       acc += t - last;
       last = t;
-      if (acc >= FRAME_MS) {
+      if (acc>= FRAME_MS) {
         acc = 0;
         setAnimTick(Math.floor(t));
       }
@@ -330,7 +308,6 @@ export function SemanticMap() {
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, []);
-
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!svgRef.current) return;
@@ -341,12 +318,10 @@ export function SemanticMap() {
       });
     d3.select(svgRef.current).call(zoom);
   }, [dimensions]);
-
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
   }, [hoveredNode]);
-
   // ─── Esc closes the pinned preview ────────────────────────────────────────
   useEffect(() => {
     if (!selectedNode) return;
@@ -356,11 +331,9 @@ export function SemanticMap() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedNode, setSelectedNode]);
-
   // Auto-zoom on hover was removed: it competed with the user's own
   // wheel/drag zoom and felt erratic. Pan + zoom remain available via
   // mouse wheel and drag, owned entirely by the user.
-
   // ─── Derived: who is connected to the hovered/selected node ───────────────
   const pivot = hoveredNode ?? selectedNode;
   const connectedIds = useMemo(() => {
@@ -387,7 +360,6 @@ export function SemanticMap() {
     }
     return s;
   }, [pivot, links, emergentLinks]);
-
   // Clan centroids — used to render floating clan labels and a subtle aura
   // around each clan's region. Computed only over emotion nodes so that
   // color/artwork/music nodes don't shift the geometry of a clan.
@@ -409,7 +381,7 @@ export function SemanticMap() {
       let maxDist = 0;
       for (const n of group) {
         const d = Math.hypot(n.x! - cx, n.y! - cy);
-        if (d > maxDist) maxDist = d;
+        if (d> maxDist) maxDist = d;
       }
       centroids.push({
         id: `centroid-${clanId}`,
@@ -422,7 +394,6 @@ export function SemanticMap() {
     }
     return centroids;
   }, [nodes]);
-
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -434,7 +405,6 @@ export function SemanticMap() {
     }
     return mates;
   }, [pivot, nodes]);
-
   // Echo (second-degree neighbors): latent semantic field
   const echoIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -447,13 +417,11 @@ export function SemanticMap() {
     }
     return e;
   }, [connectedIds, links, pivot]);
-
   const isNodeFiltered = useCallback((node: MapNode) => {
     if (activeFilter && node.type !== activeFilter) return false;
     if (activeTribe && node.type === "emotion" && node.tribe !== activeTribe) return false;
     return true;
   }, [activeFilter, activeTribe]);
-
   const handleNodeClick = useCallback((node: MapNode) => {
     trackEvent("node_clicked", { nodeId: node.id, type: node.type });
     // Click-to-pin: the preview panel stays open until the user clicks
@@ -462,10 +430,8 @@ export function SemanticMap() {
     // "card disappears before I can reach the link" UX bug.
     setSelectedNode(selectedNode === node.id ? null : node.id);
   }, [selectedNode, setSelectedNode]);
-
   // Suppress unused-import warning — kept for future deep links.
   void router;
-
   // ─── Personality offsets — only computed for ATTENTION nodes ──────────
   // Earlier we ran personalityOffset for every one of ~1300 nodes on every
   // animation tick. That's the single biggest cause of map jank.
@@ -488,7 +454,6 @@ export function SemanticMap() {
     }
     return m;
   }, [nodes, animTick, pivot, connectedIds, selectedNode, STATIC_OFFSET]);
-
   // ─── Focus point for atmospheric field ────────────────────────────────────
   const focusPoint = useMemo(() => {
     if (!pivot) return null;
@@ -499,9 +464,7 @@ export function SemanticMap() {
     const y = (n.y + (off?.dy ?? 0)) * transform.k + transform.y;
     return { x, y };
   }, [pivot, nodes, nodeOffsets, transform]);
-
   if (!dimensions.w) return null;
-
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
     const sId = typeof l.source === "object" ? (l.source as MapNode).id : (l.source as string);
@@ -521,11 +484,9 @@ export function SemanticMap() {
       idx,
     };
   };
-
   // Resolve link endpoints with personality offsets applied
   const linkData = links.map((l, idx) => resolveLink(l, idx));
   const emergentLinkData = emergentLinks.map((l, idx) => resolveLink(l, idx));
-
   // Sort links so direct ones reveal first, then echoes
   const linksByReveal = [...linkData].sort((a, b) => {
     const aDirect = a.sId === pivot || a.tId === pivot ? 1 : 0;
@@ -533,7 +494,6 @@ export function SemanticMap() {
     if (aDirect !== bDirect) return bDirect - aDirect;
     return b.strength - a.strength;
   });
-
   return (
     <div className="relative w-full h-full select-none overflow-hidden">
       {/* Atmospheric field — sits behind the map, reacts to active emotion */}
@@ -544,7 +504,6 @@ export function SemanticMap() {
         height={dimensions.h}
         focusPoint={focusPoint}
       />
-
       <svg
         ref={svgRef}
         className="relative w-full h-full cursor-grab active:cursor-grabbing"
@@ -553,7 +512,7 @@ export function SemanticMap() {
           // Click on empty canvas (not a node <g>) deselects.
           if ((e.target as SVGElement).tagName === "svg") setSelectedNode(null);
         }}
-      >
+>
         <defs>
           {/* Glow filters per tribe */}
           {TRIBES.map((tribe) => (
@@ -578,7 +537,6 @@ export function SemanticMap() {
             </feMerge>
           </filter>
         </defs>
-
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
           {/* Clan labels — float at each clan's centroid, faint by default,
               emphasized when a member is hovered. Sits behind links/nodes. */}
@@ -609,14 +567,13 @@ export function SemanticMap() {
                       textTransform: "uppercase",
                       transition: "fill-opacity 0.4s ease, font-size 0.4s ease",
                     }}
-                  >
+>
                     {clan.name}
                   </text>
                 </g>
               );
             })}
           </g>
-
           {/* Emergent links — selective render: only shown when a node is
               the pivot, and only the pivot's links are drawn (cleanly
               highlighting WHAT resonates with WHAT). Without a pivot, the
@@ -641,7 +598,6 @@ export function SemanticMap() {
                 ))}
             </g>
           )}
-
           {/* Links — progressive reveal & ambiguity flicker. Non-interactive
               so we mark the entire group pointer-events:none, matching the
               architecture: only Layer 4 (map-hits) is clickable. */}
@@ -650,7 +606,6 @@ export function SemanticMap() {
             {linksByReveal.map((link, sortIdx) => {
               const isDirect = pivot && (link.sId === pivot || link.tId === pivot);
               const isEcho = pivot && !isDirect && (connectedIds.has(link.sId) && connectedIds.has(link.tId));
-
               // Progressive reveal: each direct link emerges in order
               let revealedOpacity = 1;
               if (pivot) {
@@ -658,14 +613,11 @@ export function SemanticMap() {
                 const delay = isDirect ? sortIdx * 55 : 600 + sortIdx * 30;
                 revealedOpacity = Math.max(0, Math.min(1, (elapsed - delay) / 400));
               }
-
               const baseOpacity = pivot
                 ? isDirect ? 0.55 : isEcho ? 0.18 : 0.03
                 : 0.11;
-
               const instability = linkInstability(link.ambiguity ?? 0, link.sId, link.tId, animTick);
               const finalOpacity = baseOpacity * revealedOpacity * instability;
-
               return (
                 <line
                   key={`${link.sId}-${link.tId}-${link.idx}`}
@@ -680,12 +632,11 @@ export function SemanticMap() {
                   }
                   strokeWidth={link.strength * (isDirect ? 1.8 : 1.4)}
                   strokeOpacity={finalOpacity}
-                  strokeDasharray={(link.ambiguity ?? 0) > 0.3 ? "4 6" : undefined}
+                  strokeDasharray={(link.ambiguity ?? 0)> 0.3 ? "4 6" : undefined}
                 />
               );
             })}
           </g>
-
           {/*
             ═══════════════════════════════════════════════════════════════
             LAYERED RENDER ARCHITECTURE
@@ -696,7 +647,6 @@ export function SemanticMap() {
             in the HIT layer. Adding a label goes in the LABEL layer. This
             eliminates the recurring z-index foot-gun where a decorative
             halo silently absorbed clicks meant for distant nodes.
-
               ┌───────────────────────────┐
               │  Layer 5: LABELS          │  pointer-events: none
               │  ─ text under each node   │
@@ -710,7 +660,6 @@ export function SemanticMap() {
               │  Layer 2: LINKS           │  already exists
               │  Layer 1: ATMOSPHERE      │  already exists
               └───────────────────────────┘
-
             We sort the nodes ONCE and reuse the order across all 3 node
             layers, so visual + interactive z-order stay consistent. The
             pivot's gigantic halo can never block clicks: the entire deco
@@ -726,7 +675,6 @@ export function SemanticMap() {
               };
               return pri(a.id) - pri(b.id);
             });
-
             type NodeRender = {
               node: MapNode;
               x: number;
@@ -741,7 +689,6 @@ export function SemanticMap() {
               tribeGlow: string;
               hitR: number;
             };
-
             const rendered: NodeRender[] = sortedNodes
               .map((node) => {
                 if (!node.x || !node.y) return null;
@@ -773,7 +720,6 @@ export function SemanticMap() {
                          isPivotConn, isClanMate, off, tribeGlow, hitR };
               })
               .filter((x): x is NodeRender => x !== null);
-
             return (
               <>
                 {/* ─── Layer 3: Decorations (visual, never clickable) ─── */}
@@ -840,14 +786,13 @@ export function SemanticMap() {
                           fill={node.color}
                           fillOpacity={0.85}
                           style={{ fontFeatureSettings: '"liga"', userSelect: "none" }}
-                        >
+>
                           {GLYPH[node.type]}
                         </text>
                       )}
                     </g>
                   ))}
                 </g>
-
                 {/* ─── Layer 4: Hit targets (THE ONLY clickable layer) ─── */}
                 <g className="map-hits">
                   {rendered.map(({ node, x, y, hitR, opacity }) => (
@@ -857,7 +802,7 @@ export function SemanticMap() {
                       key={node.id}
                       cx={x} cy={y} r={hitR}
                       fill="transparent"
-                      style={{ cursor: opacity > 0.3 ? "pointer" : "default" }}
+                      style={{ cursor: opacity> 0.3 ? "pointer" : "default" }}
                       onMouseEnter={() => {
                         setHoveredNode(node.id);
                         trackEvent("node_hovered", { nodeId: node.id, type: node.type });
@@ -867,7 +812,6 @@ export function SemanticMap() {
                     />
                   ))}
                 </g>
-
                 {/* ─── Layer 5: Labels (above everything, never clickable) ─── */}
                 <g className="map-labels" pointerEvents="none">
                   {rendered.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn }) => (
@@ -895,7 +839,7 @@ export function SemanticMap() {
                         transition: "fill-opacity 0.4s ease",
                         userSelect: "none",
                       }}
-                    >
+>
                       {node.label}
                     </text>
                   ))}
@@ -905,7 +849,6 @@ export function SemanticMap() {
           })()}
         </g>
       </svg>
-
       {/* Full-screen card painted with the node's colour. Replaces the
           small floating panel — much more breathing room, the entity gets
           to dominate the surface. Hover still drives highlights; click
@@ -913,13 +856,12 @@ export function SemanticMap() {
       {selectedNode && (
         <NodeFullPreview nodeId={selectedNode} nodes={nodes} onClose={() => setSelectedNode(null)} />
       )}
-
       {/* ─── Link-mode toggle (Marina curado vs. vectores emergentes) ───── */}
       <div className="absolute top-20 right-6 z-10">
         <p
           className="text-[0.55rem] text-ink-faint mb-2 text-right"
           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-        >
+>
           ENLACES
         </p>
         <div className="flex flex-col gap-1 items-end">
@@ -942,20 +884,19 @@ export function SemanticMap() {
                   border: "1px solid",
                 }}
                 title={m.hint}
-              >
+>
                 {m.label}
               </button>
             );
           })}
         </div>
       </div>
-
       {/* Tribe filters — 22 tribes, compact column with hover-expand labels */}
       <div className="absolute top-20 left-4 z-10 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-4">
         <p
           className="text-[0.55rem] text-ink-faint mb-2 pl-1"
           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-        >
+>
           22 TRIBUS
         </p>
         <div className="flex flex-col gap-[3px]">
@@ -968,7 +909,7 @@ export function SemanticMap() {
                   className="flex items-center gap-2 py-[3px] px-1.5 rounded-md transition-all duration-200 hover:bg-white/5 flex-1"
                   onClick={() => useMapStore.getState().setActiveTribe(isActive ? null : tribe.id)}
                   title={`Filtrar por ${tribe.name}`}
-                >
+>
                   <div
                     className="w-1.5 h-1.5 rounded-full flex-shrink-0 transition-all duration-200"
                     style={{
@@ -984,7 +925,7 @@ export function SemanticMap() {
                       color: isActive ? tribe.color : isDimmed ? "var(--album-ink-faint)" : "var(--album-ink-faint)",
                       letterSpacing: "0.04em",
                     }}
-                  >
+>
                     {tribe.name}
                   </span>
                 </button>
@@ -994,7 +935,7 @@ export function SemanticMap() {
                   title={`Abrir tribu ${tribe.name}`}
                   style={{ fontFamily: "var(--font-technical)" }}
                   onClick={(e) => { e.stopPropagation(); }}
-                >
+>
                   ↗
                 </a>
               </div>
@@ -1005,7 +946,6 @@ export function SemanticMap() {
     </div>
   );
 }
-
 // ─── Cluster Force ────────────────────────────────────────────────────────────
 //
 // 22 tribes distributed on a circle in their canonical Marina order (I → XXII).
@@ -1016,7 +956,6 @@ export function SemanticMap() {
 //   - Left:   XVII–II  (wonder, fulfillment, love, drive)
 //
 // Computing positions once per dimension change.
-
 function radialPositions(w: number, h: number): Record<string, { x: number; y: number }> {
   // Canonical I–XXII order
   const order = [
@@ -1039,10 +978,8 @@ function radialPositions(w: number, h: number): Record<string, { x: number; y: n
   }
   return positions;
 }
-
 function clusterForce(nodes: MapNode[], w: number, h: number) {
   const TRIBE_POSITIONS = radialPositions(w, h);
-
   return (alpha: number) => {
     for (const node of nodes) {
       if (node.tribe && TRIBE_POSITIONS[node.tribe]) {
@@ -1056,7 +993,6 @@ function clusterForce(nodes: MapNode[], w: number, h: number) {
     }
   };
 }
-
 // ─── Clan Force ──────────────────────────────────────────────────────────────
 //
 // Inside each tribe, emotions of the same clan should attract each other
@@ -1064,7 +1000,6 @@ function clusterForce(nodes: MapNode[], w: number, h: number) {
 // Pérdida tribe, melancolía and tristeza form a cluster distinct from
 // nostalgia/añoranza). The force is weak (~10% of the tribal pull) so it
 // refines structure without overpowering the tribal layout.
-
 function clanForce(nodes: MapNode[]) {
   // Group emotion nodes by clan
   const clanGroups: Record<string, MapNode[]> = {};
@@ -1073,7 +1008,6 @@ function clanForce(nodes: MapNode[]) {
       (clanGroups[n.clan] ??= []).push(n);
     }
   }
-
   return (alpha: number) => {
     for (const clanId of Object.keys(clanGroups)) {
       const group = clanGroups[clanId];
@@ -1098,7 +1032,6 @@ function clanForce(nodes: MapNode[]) {
     }
   };
 }
-
 // ─── Resonance gravity ───────────────────────────────────────────────────────
 //
 // The most important geometric force in the new system: each cultural entity
@@ -1111,7 +1044,6 @@ function clanForce(nodes: MapNode[]) {
 // The pull is computed ONCE per node (its top-K emotion neighbours are stable
 // because vectors don't change at runtime), then applied each tick toward the
 // weighted centroid of those emotions' CURRENT positions.
-
 function resonanceGravityForce(
   nodes: Array<MapNode & { resonance?: ResonanceAxes }>,
 ): (alpha: number) => void {
@@ -1121,15 +1053,12 @@ function resonanceGravityForce(
     node: n,
     vector: buildVector(n.resonance!),
   }));
-
   type Anchor = { emotionNode: MapNode; weight: number };
   const culturalAnchors = new Map<string, Anchor[]>();
-
   // Per-node pull strength. Colour nodes are pulled hard so they collapse
   // INTO their parent emotion's halo as petals; cultural nodes get the
   // softer attraction so they read as a loose orbit.
   const pullByType = new Map<string, number>();
-
   for (const n of nodes) {
     if (n.type === "emotion") continue;
     if (!n.resonance) continue;
@@ -1150,7 +1079,6 @@ function resonanceGravityForce(
     // rather than collapse into distinct rings.
     pullByType.set(n.id, n.type === "color" ? 0.18 : 0.16);
   }
-
   return (alpha: number) => {
     for (const node of nodes) {
       const anchors = culturalAnchors.get(node.id);
@@ -1167,15 +1095,12 @@ function resonanceGravityForce(
     }
   };
 }
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function hexToRgbNorm(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
   const b = parseInt(hex.slice(5, 7), 16) / 255;
   return [r, g, b];
 }
-
 // Suppress unused-import warning during transition
 void EMOTION_MAP;

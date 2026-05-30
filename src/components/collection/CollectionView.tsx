@@ -1,6 +1,4 @@
 "use client";
-
-import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useCollectionsStore } from "@/lib/store";
 import { EMOTION_MAP } from "@/data/ontology/emotions";
@@ -13,61 +11,54 @@ import { COLOR_MAP } from "@/data/colors/colorResonance";
 import { FONT_MAP } from "@/data/typography/fonts";
 import { TRIBE_MAP } from "@/data/ontology/tribes";
 import type { Atmosphere } from "@/types";
-
 const fadeIn = {
   hidden: { opacity: 0, y: 16 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] } }),
 };
-
 export function CollectionView() {
   const { collections } = useCollectionsStore();
-
   const allSavedEmotions = collections.flatMap((c) => c.savedEmotions);
   const allSavedArtworks = collections.flatMap((c) => c.savedArtworks);
   const allSavedMusic = collections.flatMap((c) => c.savedMusic);
   const allSavedFilms = collections.flatMap((c) => c.savedFilms);
   const allSavedPoems = collections.flatMap((c) => c.savedPoems);
   const allAtmospheres = collections.flatMap((c) => c.atmospheres);
-
   const isEmpty =
     allSavedEmotions.length === 0 &&
     allSavedArtworks.length === 0 &&
     allAtmospheres.length === 0;
-
   return (
     <div className="min-h-screen bg-atmospheric" style={{ paddingTop: "80px" }}>
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
-
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+        <div className="mb-12">
           <p className="text-xs text-ink-faint mb-3" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}>
             ARCHIVO PERSONAL
           </p>
           <h1
             className="text-5xl md:text-6xl text-ink leading-none mb-4"
             style={{ fontFamily: "var(--font-display)", fontWeight: 300, letterSpacing: "-0.03em" }}
-          >
+>
             Mi constelación
           </h1>
           <p className="text-ink-muted/60" style={{ fontFamily: "var(--font-literary)", fontStyle: "italic" }}>
             Lo que has elegido guardar en el observatorio.
           </p>
-        </motion.div>
-
+        </div>
         {isEmpty ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, transition: { delay: 0.3 } }} className="text-center py-24">
+          <div className="text-center py-24">
             <div className="w-16 h-16 rounded-full border border-white/8 flex items-center justify-center mx-auto mb-6">
               <div className="w-2 h-2 rounded-full bg-white/20" />
             </div>
             <p
               className="text-lg text-ink-muted/60 mb-6"
               style={{ fontFamily: "var(--font-display)", fontStyle: "italic", fontWeight: 300 }}
-            >
+>
               Tu colección está vacía todavía.
             </p>
             <p
               className="text-sm text-ink-faint max-w-sm mx-auto mb-8 leading-relaxed"
               style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
-            >
+>
               Explora el mapa semántico, guarda emociones que resuenen contigo, y construye atmósferas que quieras conservar.
             </p>
             <div className="flex gap-4 justify-center">
@@ -75,24 +66,23 @@ export function CollectionView() {
                 href="/"
                 className="px-5 py-2.5 rounded-full border border-white/10 text-sm text-ink-muted hover:text-ink hover:border-white/20 transition-all duration-300"
                 style={{ fontFamily: "var(--font-technical)" }}
-              >
+>
                 Explorar el mapa
               </Link>
               <Link
                 href="/atmosphere"
                 className="px-5 py-2.5 rounded-full border border-amber/30 text-sm text-amber hover:bg-amber/8 transition-all duration-300"
                 style={{ fontFamily: "var(--font-technical)" }}
-              >
+>
                 Construir atmósfera
               </Link>
             </div>
-          </motion.div>
+          </div>
         ) : (
           <div className="space-y-16">
-
             {/* Atmospheres */}
-            {allAtmospheres.length > 0 && (
-              <motion.section variants={fadeIn} initial="hidden" animate="visible" custom={0}>
+            {allAtmospheres.length> 0 && (
+              <section>
                 <h2 className="text-xs text-ink-faint mb-6" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
                   ATMÓSFERAS ({allAtmospheres.length})
                 </h2>
@@ -101,12 +91,11 @@ export function CollectionView() {
                     <AtmosphereCard key={atm.id} atmosphere={atm} index={i} />
                   ))}
                 </div>
-              </motion.section>
+              </section>
             )}
-
             {/* Saved emotions */}
-            {allSavedEmotions.length > 0 && (
-              <motion.section variants={fadeIn} initial="hidden" animate="visible" custom={1}>
+            {allSavedEmotions.length> 0 && (
+              <section>
                 <h2 className="text-xs text-ink-faint mb-6" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
                   EMOCIONES GUARDADAS ({allSavedEmotions.length})
                 </h2>
@@ -125,19 +114,18 @@ export function CollectionView() {
                           color: tribe?.color ?? "#888",
                           backgroundColor: `${tribe?.color ?? "#888"}08`,
                         }}
-                      >
+>
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tribe?.color ?? "#888", opacity: 0.7 }} />
                         <span className="text-sm" style={{ fontFamily: "var(--font-editorial)" }}>{emotion.name}</span>
                       </Link>
                     );
                   })}
                 </div>
-              </motion.section>
+              </section>
             )}
-
             {/* Saved artworks */}
-            {allSavedArtworks.length > 0 && (
-              <motion.section variants={fadeIn} initial="hidden" animate="visible" custom={2}>
+            {allSavedArtworks.length> 0 && (
+              <section>
                 <h2 className="text-xs text-ink-faint mb-6" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
                   OBRAS GUARDADAS ({allSavedArtworks.length})
                 </h2>
@@ -167,12 +155,11 @@ export function CollectionView() {
                     );
                   })}
                 </div>
-              </motion.section>
+              </section>
             )}
-
             {/* Saved music */}
-            {allSavedMusic.length > 0 && (
-              <motion.section variants={fadeIn} initial="hidden" animate="visible" custom={3}>
+            {allSavedMusic.length> 0 && (
+              <section>
                 <h2 className="text-xs text-ink-faint mb-6" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
                   MÚSICA GUARDADA ({allSavedMusic.length})
                 </h2>
@@ -193,26 +180,21 @@ export function CollectionView() {
                     );
                   })}
                 </div>
-              </motion.section>
+              </section>
             )}
-
           </div>
         )}
       </div>
     </div>
   );
 }
-
 function AtmosphereCard({ atmosphere, index }: { atmosphere: Atmosphere; index: number }) {
   const emotion = EMOTION_MAP.get(atmosphere.emotion);
   const color = COLOR_MAP.get(atmosphere.color);
   const font = FONT_MAP.get(atmosphere.typography);
   const tribe = emotion?.tribe ? TRIBE_MAP.get(emotion.tribe) : null;
-
   return (
-    <motion.div
-      variants={fadeIn}
-      custom={index}
+    <div
       className="relative overflow-hidden rounded-2xl p-5 border cursor-default"
       style={{
         borderColor: `${color?.hex ?? "#888"}20`,
@@ -221,7 +203,7 @@ function AtmosphereCard({ atmosphere, index }: { atmosphere: Atmosphere; index: 
           rgba(20, 20, 32, 0.8)
         `,
       }}
-    >
+>
       <div className="mb-3">
         <p
           className="text-xl md:text-2xl text-ink leading-tight mb-1"
@@ -229,7 +211,7 @@ function AtmosphereCard({ atmosphere, index }: { atmosphere: Atmosphere; index: 
             fontFamily: font ? `${font.googleFontFamily}, serif` : "var(--font-display)",
             fontWeight: 300,
           }}
-        >
+>
           {atmosphere.name}
         </p>
         <div className="flex items-center gap-2">
@@ -242,7 +224,7 @@ function AtmosphereCard({ atmosphere, index }: { atmosphere: Atmosphere; index: 
       <p
         className="text-xs text-ink-muted/60 italic leading-relaxed mb-3 line-clamp-2"
         style={{ fontFamily: "var(--font-literary)" }}
-      >
+>
         {atmosphere.poeticDescription}
       </p>
       <div className="flex flex-wrap gap-1">
@@ -257,11 +239,11 @@ function AtmosphereCard({ atmosphere, index }: { atmosphere: Atmosphere; index: 
               fontSize: "0.55rem",
               letterSpacing: "0.05em",
             }}
-          >
+>
             {tag}
           </span>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }

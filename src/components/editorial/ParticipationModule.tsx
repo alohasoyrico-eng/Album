@@ -1,12 +1,9 @@
 "use client";
-
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import type { Emotion, Tribe } from "@/types";
 import { recordVote, getVoteResults } from "@/lib/analytics";
 import { useParticipationStore } from "@/lib/store";
 import type { ParticipationOptions } from "@/lib/server/emotionPageData";
-
 interface Props {
   emotion: Emotion;
   tribe: Tribe;
@@ -15,23 +12,19 @@ interface Props {
    * client bundle. */
   options: ParticipationOptions;
 }
-
 type PromptType = "color" | "typography" | "transition" | "temperature";
-
 interface Prompt {
   id: string;
   type: PromptType;
   question: string;
   options: { id: string; label: string; value: string; color?: string }[];
 }
-
 export function ParticipationModule({ emotion, tribe, options }: Props) {
   const { hasAnswered, markAnswered } = useParticipationStore();
   const [currentPrompt, setCurrentPrompt] = useState<Prompt | null>(null);
   const [answered, setAnswered] = useState(false);
   const [results, setResults] = useState<ReturnType<typeof getVoteResults> | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-
   const prompts: Prompt[] = [
     {
       id: `${emotion.id}_color`,
@@ -76,12 +69,10 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
         .map((t) => ({ id: t.to, label: t.toName, value: t.to })),
     },
   ];
-
   useEffect(() => {
     const unanswered = prompts.find((p) => !hasAnswered(p.id));
     setCurrentPrompt(unanswered ?? null);
   }, [emotion.id]);
-
   const handleVote = (optionId: string) => {
     if (!currentPrompt) return;
     setSelectedOption(optionId);
@@ -91,7 +82,6 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
     setResults(r);
     setAnswered(true);
   };
-
   const handleNext = () => {
     const unanswered = prompts.find((p) => !hasAnswered(p.id) && p.id !== currentPrompt?.id);
     setCurrentPrompt(unanswered ?? null);
@@ -99,9 +89,7 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
     setSelectedOption(null);
     setResults(null);
   };
-
   if (!currentPrompt) return null;
-
   return (
     <div className="relative">
       <div className="mb-4 flex items-center gap-2">
@@ -110,21 +98,16 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
           PARTICIPACIÓN COLECTIVA
         </h2>
       </div>
-
       <div className="p-5 rounded-2xl border border-white/8 bg-raised/40">
-        <AnimatePresence mode="wait">
+        <>
           {!answered ? (
-            <motion.div
+            <div
               key="question"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-            >
+>
               <p
                 className="text-base text-ink/80 mb-5 leading-relaxed"
                 style={{ fontFamily: "var(--font-display)", fontWeight: 300, fontStyle: "italic" }}
-              >
+>
                 {currentPrompt.question}
               </p>
               <div className="grid gap-2">
@@ -134,7 +117,7 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                     onClick={() => handleVote(option.id)}
                     className="participation-option group flex items-center gap-3 px-4 py-3 rounded-xl border border-white/6 hover:border-white/15 transition-all duration-200 text-left"
                     style={{ backgroundColor: "rgba(255,255,255,0.02)" }}
-                  >
+>
                     {option.color && (
                       <div
                         className="w-3 h-3 rounded-full flex-shrink-0"
@@ -144,28 +127,23 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                     <span
                       className="text-sm text-ink-muted group-hover:text-ink transition-colors"
                       style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}
-                    >
+>
                       {option.label}
                     </span>
                   </button>
                 ))}
               </div>
-            </motion.div>
+            </div>
           ) : (
-            <motion.div
+            <div
               key="results"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-            >
+>
               <p
                 className="text-sm text-ink-muted mb-4"
                 style={{ fontFamily: "var(--font-literary)", fontStyle: "italic" }}
-              >
+>
                 {currentPrompt.question}
               </p>
-
               {results && (
                 <div className="grid gap-2.5 mb-4">
                   {currentPrompt.options.map((option) => {
@@ -174,7 +152,6 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                     const pct = Math.round((votes / total) * 100);
                     const isDominant = option.id === results.dominantOption;
                     const isSelected = option.id === selectedOption;
-
                     return (
                       <div key={option.id} className="relative">
                         <div className="flex items-center justify-between mb-1">
@@ -185,7 +162,7 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                             <span
                               className={`text-xs ${isDominant ? "text-ink/80" : "text-ink-faint"}`}
                               style={{ fontFamily: "var(--font-technical)" }}
-                            >
+>
                               {option.label}
                               {isSelected && <span className="ml-1 opacity-50">(tu voto)</span>}
                             </span>
@@ -193,20 +170,17 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                           <span
                             className="text-xs text-ink-faint"
                             style={{ fontFamily: "var(--font-technical)", fontSize: "0.65rem" }}
-                          >
+>
                             {pct}%
                           </span>
                         </div>
                         <div className="h-px bg-white/6 rounded-full overflow-hidden">
-                          <motion.div
+                          <div
                             className="h-full rounded-full"
                             style={{
                               backgroundColor: option.color ?? tribe.color,
                               opacity: isDominant ? 0.7 : 0.3,
                             }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                           />
                         </div>
                       </div>
@@ -214,22 +188,21 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                   })}
                 </div>
               )}
-
-              {results && results.total > 1 && (
+              {results && results.total> 1 && (
                 <p
                   className="text-xs text-ink-faint mb-4"
                   style={{ fontFamily: "var(--font-technical)", fontSize: "0.65rem" }}
-                >
+>
                   {results.total} votos registrados
                   {results.confidence < 0.45 && (
                     <span
                       className="ml-2 px-1.5 py-0.5 rounded text-amber"
                       style={{ backgroundColor: "#C8935A18", fontSize: "0.6rem" }}
-                    >
+>
                       Resonancia polarizante
                     </span>
                   )}
-                  {results.confidence > 0.7 && (
+                  {results.confidence> 0.7 && (
                     <span
                       className="ml-2 px-1.5 py-0.5 rounded"
                       style={{
@@ -237,23 +210,22 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                         color: "var(--album-ink)",
                         fontSize: "0.6rem",
                       }}
-                    >
+>
                       Alta coincidencia colectiva
                     </span>
                   )}
                 </p>
               )}
-
               <button
                 onClick={handleNext}
                 className="text-xs text-ink-faint hover:text-ink-muted transition-colors"
                 style={{ fontFamily: "var(--font-technical)" }}
-              >
+>
                 Siguiente pregunta →
               </button>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );

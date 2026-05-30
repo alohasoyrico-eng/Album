@@ -1,6 +1,4 @@
 "use client";
-
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { EMOTION_MAP } from "@/data/ontology/emotions";
 import { COLOR_MAP } from "@/data/colors/colorResonance";
@@ -11,14 +9,12 @@ import { CLAN_MAP } from "@/data/ontology/clans";
 import type { MapNode } from "@/types";
 import { CulturalImage } from "@/components/ui/CulturalImage";
 import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
-
 interface Props {
   nodeId: string;
   nodes: MapNode[];
   /** When provided, renders a small × close button. */
   onClose?: () => void;
 }
-
 const RESONANCE_LABELS: Array<[string, keyof import("@/types").ResonanceAxes]> = [
   ["Energía",      "energy"],
   ["Temperatura",  "temperature"],
@@ -31,18 +27,15 @@ const RESONANCE_LABELS: Array<[string, keyof import("@/types").ResonanceAxes]> =
   ["Intimidad",    "intimacy"],
   ["Control",      "control"],
 ];
-
 export function NodePreview({ nodeId, nodes, onClose }: Props) {
   const node = nodes.find((n) => n.id === nodeId);
   if (!node) return null;
-
   const emotion = node.type === "emotion" ? EMOTION_MAP.get(nodeId) : null;
   const color = node.type === "color" ? COLOR_MAP.get(nodeId) : null;
   const artwork = node.type === "artwork" ? ARTWORK_MAP.get(nodeId) : null;
   const track = node.type === "music" ? TRACK_MAP.get(nodeId) : null;
   const tribe = emotion?.tribe ? TRIBE_MAP.get(emotion.tribe) : null;
   const clan = emotion?.clan ? CLAN_MAP.get(emotion.clan) : null;
-
   // Each preview re-typesets to the entity's own resonance, so hovering
   // a different emotion changes the preview's display + body + technical
   // fonts in real time.
@@ -50,15 +43,10 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
     emotion?.resonance ?? color?.resonance ?? artwork?.resonance ?? track?.resonance ?? null;
   const previewTypeSet = previewResonance ? deriveTypeSet(previewResonance) : null;
   const previewTypeVars = previewTypeSet ? typeSetToCssVars(previewTypeSet) : {};
-
   return (
-    <motion.div
+    <div
       className="absolute bottom-16 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 12, scale: 0.97 }}
-      transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-    >
+>
       <div
         className="glass-strong rounded-2xl px-7 py-6 pointer-events-auto relative"
         style={{
@@ -68,7 +56,7 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
             : "0 10px 60px -10px rgba(0,0,0,0.5)",
           ...previewTypeVars,
         }}
-      >
+>
         {/* Pinned-panel close affordance — Esc also closes (handled by map). */}
         {onClose && (
           <button
@@ -76,7 +64,7 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
             onClick={onClose}
             aria-label="Cerrar panel"
             className="icon icon-sm absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-white/[0.06] transition-colors"
-          >
+>
             close
           </button>
         )}
@@ -98,7 +86,7 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                         letterSpacing: "0.12em",
                       }}
                       title={`Tribu ${tribe.name}`}
-                    >
+>
                       {tribe.name.toUpperCase()}
                     </Link>
                   )}
@@ -112,7 +100,7 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                         letterSpacing: "0.1em",
                       }}
                       title={`Clan ${clan.name} (${clan.feelings.length} sentimientos)`}
-                    >
+>
                       {clan.name.toUpperCase()}
                     </Link>
                   )}
@@ -120,13 +108,13 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                 <h3
                   className="text-3xl text-ink leading-[0.95] mb-1"
                   style={{ fontFamily: "var(--font-display)", fontWeight: 300, letterSpacing: "-0.02em" }}
-                >
+>
                   {emotion.name}
                 </h3>
                 <p
                   className="text-[0.7rem] text-ink-muted"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-                >
+>
                   {emotion.nameEn}
                 </p>
               </div>
@@ -138,20 +126,18 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                 }}
               />
             </div>
-
             {/* Poetic intro — give it room */}
             <p
               className="text-sm text-ink-muted/80 leading-relaxed mb-5 pb-5 border-b border-white/6"
               style={{ fontFamily: "var(--font-literary)", fontStyle: "italic" }}
-            >
+>
               {emotion.poeticIntro}
             </p>
-
             {/* All 10 resonance axes — two columns */}
             <p
               className="text-[0.55rem] text-ink-faint mb-2.5"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
-            >
+>
               PERFIL DE RESONANCIA
             </p>
             <div className="grid grid-cols-2 gap-x-5 gap-y-1.5 mb-5">
@@ -162,15 +148,12 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                     <span
                       className="text-[0.6rem] text-ink-faint w-[64px] tabular-nums"
                       style={{ fontFamily: "var(--font-technical)" }}
-                    >
+>
                       {label}
                     </span>
                     <div className="flex-1 h-[2px] bg-white/8 rounded-full overflow-hidden">
-                      <motion.div
+                      <div
                         className="h-full rounded-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${v}%` }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                         style={{
                           backgroundColor: tribe?.color ?? "#C8935A",
                           opacity: 0.85,
@@ -180,16 +163,15 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                     <span
                       className="text-[0.6rem] text-ink-faint w-5 text-right tabular-nums"
                       style={{ fontFamily: "var(--font-technical)" }}
-                    >
+>
                       {v}
                     </span>
                   </div>
                 );
               })}
             </div>
-
             {/* Atmosphere tags */}
-            {emotion.atmosphereTags.length > 0 && (
+            {emotion.atmosphereTags.length> 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {emotion.atmosphereTags.slice(0, 6).map((tag) => (
                   <span
@@ -199,23 +181,21 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                       backgroundColor: "rgba(255,255,255,0.035)",
                       fontFamily: "var(--font-editorial)",
                     }}
-                  >
+>
                     {tag}
                   </span>
                 ))}
               </div>
             )}
-
             <Link
               href={`/emotion/${emotion.id}`}
               className="text-xs inline-flex items-center gap-1.5 transition-colors duration-200 hover:opacity-80"
               style={{ color: tribe?.color ?? "#C8935A", fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-            >
+>
               EXPLORAR EMOCIÓN →
             </Link>
           </>
         )}
-
         {/* ─── Color preview ─── */}
         {color && (
           <>
@@ -232,13 +212,13 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                 <h3
                   className="text-2xl text-ink leading-tight"
                   style={{ fontFamily: "var(--font-display)", fontWeight: 300 }}
-                >
+>
                   {color.nameEs}
                 </h3>
                 <p
                   className="text-[0.65rem] text-ink-faint mt-1"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
-                >
+>
                   HELLER · {color.appreciatedRank ? `#${color.appreciatedRank} APRECIADO` : "—"}
                   {color.lessAppreciatedRank ? ` · #${color.lessAppreciatedRank} RECHAZADO` : ""}
                 </p>
@@ -247,17 +227,17 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
             <p
               className="text-sm text-ink-muted/80 italic leading-relaxed mb-4"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               "{color.hellerQuote}"
             </p>
-            {color.symbolism.length > 0 && (
+            {color.symbolism.length> 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {color.symbolism.slice(0, 5).map((s) => (
                   <span
                     key={s}
                     className="text-[0.62rem] px-1.5 py-0.5 rounded text-ink-muted/75"
                     style={{ backgroundColor: "rgba(255,255,255,0.035)", fontFamily: "var(--font-editorial)" }}
-                  >
+>
                     {s}
                   </span>
                 ))}
@@ -267,12 +247,11 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
               href={`/color/${color.id}`}
               className="text-xs inline-flex items-center gap-1.5 transition-colors duration-200 hover:opacity-80"
               style={{ color: color.hex, fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-            >
+>
               EXPLORAR COLOR →
             </Link>
           </>
         )}
-
         {/* ─── Artwork preview ─── */}
         {artwork && (
           <>
@@ -290,13 +269,13 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                 <h3
                   className="text-lg text-ink leading-tight mb-1"
                   style={{ fontFamily: "var(--font-editorial)", fontWeight: 500 }}
-                >
+>
                   {artwork.title}
                 </h3>
                 <p
                   className="text-[0.7rem] text-ink-faint"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-                >
+>
                   {artwork.artist} · {artwork.year}
                 </p>
               </div>
@@ -304,12 +283,11 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
             <p
               className="text-sm text-ink-muted/80 italic leading-relaxed"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               {artwork.poeticDescription}
             </p>
           </>
         )}
-
         {/* ─── Music preview ─── */}
         {track && (
           <>
@@ -321,13 +299,13 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
                 <h3
                   className="text-base text-ink leading-tight mb-1"
                   style={{ fontFamily: "var(--font-editorial)" }}
-                >
+>
                   {track.title}
                 </h3>
                 <p
                   className="text-[0.7rem] text-ink-faint"
                   style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}
-                >
+>
                   {track.artist}{track.year ? ` · ${track.year}` : ""}
                 </p>
               </div>
@@ -335,17 +313,17 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
             <p
               className="text-sm text-ink-muted/80 italic leading-relaxed mb-3"
               style={{ fontFamily: "var(--font-literary)" }}
-            >
+>
               {track.description}
             </p>
-            {track.moods.length > 0 && (
+            {track.moods.length> 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {track.moods.slice(0, 5).map((m) => (
                   <span
                     key={m}
                     className="text-[0.62rem] px-1.5 py-0.5 rounded text-ink-muted/75"
                     style={{ backgroundColor: "rgba(255,255,255,0.035)", fontFamily: "var(--font-editorial)" }}
-                  >
+>
                     {m}
                   </span>
                 ))}
@@ -354,6 +332,6 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
           </>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

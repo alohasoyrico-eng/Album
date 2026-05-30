@@ -1,7 +1,5 @@
 "use client";
-
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { EMOTIONS } from "@/data/ontology/emotions";
 import { COLORS } from "@/data/colors/colorResonance";
 import { TYPOGRAPHY } from "@/data/typography/fonts";
@@ -15,25 +13,20 @@ import Link from "next/link";
 import { ResonanceProfile } from "@/components/editorial/ResonanceProfile";
 import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
 import { deriveTexture } from "@/lib/emotionTexture";
-
 export function AtmosphereBuilder() {
   const {
     selectedEmotion, selectedColor, selectedFont,
     setEmotion, setColor, setFont,
     generatedAtmosphere, setGeneratedAtmosphere, isGenerating, setIsGenerating,
   } = useAtmosphereBuilderStore();
-
   const { addAtmosphere, getDefaultCollection } = useCollectionsStore();
   const [saved, setSaved] = useState(false);
   const [step, setStep] = useState<"emotion" | "color" | "font" | "result">("emotion");
-
   const canGenerate = selectedEmotion && selectedColor && selectedFont;
-
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setIsGenerating(true);
     await new Promise((r) => setTimeout(r, 1200));
-
     const result = generateAtmosphere(selectedEmotion, selectedColor, selectedFont);
     const atmosphere: Atmosphere = {
       id: `atm_${Date.now()}`,
@@ -47,24 +40,20 @@ export function AtmosphereBuilder() {
       createdAt: new Date().toISOString(),
       isSaved: false,
     };
-
     setGeneratedAtmosphere(atmosphere);
     setIsGenerating(false);
     setStep("result");
   };
-
   const handleSave = () => {
     if (!generatedAtmosphere) return;
     const col = getDefaultCollection();
     addAtmosphere(col.id, { ...generatedAtmosphere, isSaved: true });
     setSaved(true);
   };
-
   const emotion = selectedEmotion ? EMOTIONS.find((e) => e.id === selectedEmotion) : null;
   const color = selectedColor ? COLORS.find((c) => c.id === selectedColor) : null;
   const font = selectedFont ? TYPOGRAPHY.find((t) => t.id === selectedFont) : null;
   const tribe = emotion?.tribe ? TRIBE_MAP.get(emotion.tribe) : null;
-
   // Dynamic typeset + texture from the currently-selected emotion (or
   // color if no emotion yet). The whole atmosphere page re-typesets and
   // re-textures live as the user makes choices.
@@ -74,7 +63,6 @@ export function AtmosphereBuilder() {
   const liveTexture = resonanceSource
     ? deriveTexture(resonanceSource, color ? [color] : [])
     : null;
-
   return (
     <div className="min-h-screen bg-atmospheric relative" style={{ paddingTop: "80px", ...liveTypeVars }}>
       {/* Dynamic background — texture stack while resonance is known */}
@@ -95,17 +83,16 @@ export function AtmosphereBuilder() {
           }}
         />
       )}
-
       <div className="relative z-10 max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12">
+        <div className="mb-12">
           <p className="text-xs text-ink-faint mb-3" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}>
             CONSTRUCTOR DE ATMÓSFERAS
           </p>
           <h1
             className="text-5xl md:text-6xl text-ink leading-none mb-4"
             style={{ fontFamily: "var(--font-display)", fontWeight: 300, letterSpacing: "-0.03em" }}
-          >
+>
             Ensambla el clima
             <br />
             <span className="text-ink-muted/50">de lo que sientes</span>
@@ -113,11 +100,10 @@ export function AtmosphereBuilder() {
           <p
             className="text-ink-muted/60 max-w-xl"
             style={{ fontFamily: "var(--font-literary)", fontStyle: "italic" }}
-          >
+>
             Elige una emoción, un color y una tipografía. El sistema generará una atmósfera única con su nombre, perfil de resonancia y descripción poética.
           </p>
-        </motion.div>
-
+        </div>
         {/* Step indicators */}
         <div className="flex gap-2 mb-10">
           {(["emotion", "color", "font"] as const).map((s, i) => (
@@ -129,7 +115,7 @@ export function AtmosphereBuilder() {
                 backgroundColor: step === s ? "rgba(255,255,255,0.06)" : "transparent",
                 border: `1px solid ${step === s ? "rgba(255,255,255,0.12)" : "transparent"}`,
               }}
-            >
+>
               <span
                 className="w-4 h-4 rounded-full flex items-center justify-center text-xs"
                 style={{
@@ -137,7 +123,7 @@ export function AtmosphereBuilder() {
                   color: [selectedEmotion, selectedColor, selectedFont][i] ? "#050508" : "var(--album-ink-faint)",
                   fontSize: "0.6rem",
                 }}
-              >
+>
                 {i + 1}
               </span>
               <span
@@ -147,16 +133,15 @@ export function AtmosphereBuilder() {
                   color: step === s ? "var(--album-ink)" : "var(--album-ink-faint)",
                   fontSize: "0.7rem",
                 }}
-              >
+>
                 {["Emoción", "Color", "Tipografía"][i]}
               </span>
             </button>
           ))}
         </div>
-
-        <AnimatePresence mode="wait">
+        <>
           {step === "emotion" && (
-            <motion.div key="emotion" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <div key="emotion">
               <h2 className="text-sm text-ink-muted mb-6" style={{ fontFamily: "var(--font-editorial)" }}>
                 ¿Desde qué emoción quieres construir?
               </h2>
@@ -173,7 +158,7 @@ export function AtmosphereBuilder() {
                         borderColor: isSelected ? `${t?.color ?? "#888"}60` : "rgba(255,255,255,0.06)",
                         backgroundColor: isSelected ? `${t?.color ?? "#888"}12` : "rgba(255,255,255,0.02)",
                       }}
-                    >
+>
                       <div className="flex items-center gap-2 mb-1">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: t?.color ?? "#888", opacity: 0.7 }} />
                         <span className="text-xs text-ink-faint" style={{ fontFamily: "var(--font-technical)", fontSize: "0.6rem" }}>
@@ -187,11 +172,10 @@ export function AtmosphereBuilder() {
                   );
                 })}
               </div>
-            </motion.div>
+            </div>
           )}
-
           {step === "color" && (
-            <motion.div key="color" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <div key="color">
               <h2 className="text-sm text-ink-muted mb-6" style={{ fontFamily: "var(--font-editorial)" }}>
                 ¿Qué color habita esta atmósfera?
               </h2>
@@ -204,7 +188,7 @@ export function AtmosphereBuilder() {
                       onClick={() => { setColor(c.id); setStep("font"); }}
                       className="group rounded-xl overflow-hidden border transition-all duration-300 hover:scale-[1.02]"
                       style={{ borderColor: isSelected ? `${c.hex}60` : "rgba(255,255,255,0.06)" }}
-                    >
+>
                       <div
                         className="h-20 w-full"
                         style={{
@@ -226,11 +210,10 @@ export function AtmosphereBuilder() {
               <button onClick={() => setStep("emotion")} className="text-xs text-ink-faint hover:text-ink-muted transition-colors" style={{ fontFamily: "var(--font-technical)" }}>
                 ← Cambiar emoción
               </button>
-            </motion.div>
+            </div>
           )}
-
           {step === "font" && (
-            <motion.div key="font" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <div key="font">
               <h2 className="text-sm text-ink-muted mb-6" style={{ fontFamily: "var(--font-editorial)" }}>
                 ¿Qué tipografía habla en esta atmósfera?
               </h2>
@@ -246,7 +229,7 @@ export function AtmosphereBuilder() {
                         borderColor: isSelected ? `${tribe?.color ?? "#C8935A"}50` : "rgba(255,255,255,0.06)",
                         backgroundColor: isSelected ? `${tribe?.color ?? "#C8935A"}0A` : "rgba(255,255,255,0.02)",
                       }}
-                    >
+>
                       <div className="flex items-start justify-between mb-3">
                         <div>
                           <p className="text-sm text-ink-muted" style={{ fontFamily: "var(--font-technical)" }}>{t.name}</p>
@@ -259,14 +242,13 @@ export function AtmosphereBuilder() {
                       <p
                         className="text-lg text-ink/60"
                         style={{ fontFamily: `${t.googleFontFamily}, serif`, fontStyle: "italic" }}
-                      >
+>
                         {t.specimen}
                       </p>
                     </button>
                   );
                 })}
               </div>
-
               <div className="flex gap-4 items-center">
                 <button
                   onClick={handleGenerate}
@@ -278,7 +260,7 @@ export function AtmosphereBuilder() {
                     fontFamily: "var(--font-technical)",
                     boxShadow: canGenerate ? `0 0 30px ${tribe?.color ?? "#C8935A"}40` : "none",
                   }}
-                >
+>
                   {isGenerating ? (
                     <span className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full border border-current border-t-transparent animate-spin" />
@@ -292,17 +274,12 @@ export function AtmosphereBuilder() {
                   ← Cambiar color
                 </button>
               </div>
-            </motion.div>
+            </div>
           )}
-
           {step === "result" && generatedAtmosphere && (
-            <motion.div
+            <div
               key="result"
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            >
+>
               {/* Atmosphere canvas */}
               <div
                 className="relative overflow-hidden rounded-2xl p-8 md:p-12 mb-8 border"
@@ -314,7 +291,7 @@ export function AtmosphereBuilder() {
                     rgba(20, 20, 32, 0.8)
                   `,
                 }}
-              >
+>
                 {/* Atmosphere name */}
                 <div className="mb-6">
                   <p className="text-xs text-ink-faint mb-2" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}>
@@ -327,11 +304,10 @@ export function AtmosphereBuilder() {
                       fontWeight: 300,
                       letterSpacing: "-0.02em",
                     }}
-                  >
+>
                     {generatedAtmosphere.name}
                   </h2>
                 </div>
-
                 {/* Color swatch row */}
                 <div className="flex gap-2 mb-6">
                   {color && <div className="w-6 h-6 rounded-full border border-white/10" style={{ backgroundColor: color.hex, opacity: 0.75 }} />}
@@ -344,15 +320,13 @@ export function AtmosphereBuilder() {
                     </span>
                   </div>
                 </div>
-
                 {/* Poetic description */}
                 <p
                   className="text-base md:text-lg text-ink/60 leading-relaxed max-w-xl mb-6"
                   style={{ fontFamily: "var(--font-literary)", fontStyle: "italic" }}
-                >
+>
                   {generatedAtmosphere.poeticDescription}
                 </p>
-
                 {/* Tags */}
                 <div className="flex flex-wrap gap-2">
                   {generatedAtmosphere.atmosphereTags.map((tag) => (
@@ -367,13 +341,12 @@ export function AtmosphereBuilder() {
                         fontSize: "0.65rem",
                         letterSpacing: "0.06em",
                       }}
-                    >
+>
                       {tag}
                     </span>
                   ))}
                 </div>
               </div>
-
               {/* Resonance profile */}
               <div className="mb-8">
                 <p className="text-xs text-ink-faint mb-4" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
@@ -381,7 +354,6 @@ export function AtmosphereBuilder() {
                 </p>
                 <ResonanceProfile resonance={generatedAtmosphere.resonanceProfile} color={tribe?.color ?? "#C8935A"} />
               </div>
-
               {/* Actions */}
               <div className="flex gap-4 flex-wrap">
                 <button
@@ -394,7 +366,7 @@ export function AtmosphereBuilder() {
                     fontFamily: "var(--font-technical)",
                     boxShadow: !saved ? `0 0 20px ${tribe?.color ?? "#C8935A"}30` : "none",
                   }}
-                >
+>
                   {saved ? "✓ Guardada" : "Guardar atmósfera"}
                 </button>
                 <button
@@ -405,20 +377,20 @@ export function AtmosphereBuilder() {
                   }}
                   className="px-6 py-2.5 rounded-full text-sm border border-white/10 text-ink-muted hover:text-ink hover:border-white/20 transition-all duration-300"
                   style={{ fontFamily: "var(--font-technical)" }}
-                >
+>
                   Nueva atmósfera
                 </button>
                 <Link
                   href="/collection"
                   className="px-6 py-2.5 rounded-full text-sm border border-white/6 text-ink-faint hover:text-ink-muted hover:border-white/12 transition-all duration-300"
                   style={{ fontFamily: "var(--font-technical)" }}
-                >
+>
                   Ver colección →
                 </Link>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );

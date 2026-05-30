@@ -47,7 +47,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizePackageImports: ["framer-motion", "d3"],
+    // framer-motion is gone (replaced with CSS); only d3 still
+    // benefits from per-symbol tree-shaking hints.
+    optimizePackageImports: ["d3"],
   },
   // Cloudflare Pages serves trailingSlash:true cleaner (each route
   // becomes its own `index.html`), avoiding 404s on direct link.
