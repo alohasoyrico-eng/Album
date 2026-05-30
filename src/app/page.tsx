@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { SemanticMap } from "@/components/map/SemanticMap";
+import { MobileTribesGrid } from "@/components/map/MobileTribesGrid";
 import { SearchPalette } from "@/components/ui/SearchPalette";
 import { TRIBES } from "@/data/ontology/tribes";
 import { EMOTIONS } from "@/data/ontology/emotions";
@@ -80,14 +81,22 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen bg-atmospheric overflow-hidden">
-      {/* The semantic map — interactive, sits behind */}
-      <div className="relative w-full" style={{ height: "100vh" }}>
+      {/* The semantic map (tablet+ only). On phones the 22-tribe radial
+          collapses to ~120 px radius and labels become illegible, so we
+          swap it for a 2-column tribe grid below. */}
+      <div className="relative w-full hidden md:block" style={{ height: "100vh" }}>
         <SemanticMap />
       </div>
+      <div className="md:hidden">
+        <MobileTribesGrid />
+      </div>
 
-      {/* Hero overlay — scrim + text + search + chips, centered on top */}
+      {/* Hero overlay — scrim + text + search + chips. On md+ it floats
+          over the map (`absolute`); on phones the map is replaced by the
+          tribes grid below, so the hero just becomes a normal flow block
+          ahead of that grid. */}
       <motion.div
-        className="absolute top-0 left-0 right-0 z-20 flex flex-col items-center justify-center pt-28 pb-8 px-4 pointer-events-none"
+        className="md:absolute top-0 left-0 right-0 z-20 flex flex-col items-center justify-center pt-28 pb-8 px-4 pointer-events-none"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}

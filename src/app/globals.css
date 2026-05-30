@@ -477,3 +477,40 @@ html[data-theme="dawn"] .glass-strong {
   /* parchment glass has a hint of warm cream */
   box-shadow: 0 4px 30px -8px rgba(180, 130, 80, 0.10);
 }
+
+/* ─── Mobile (≤640 px) touch + legibility lift ─────────────────────
+ * The editorial pages were authored on a 1280-1920 px canvas where
+ * many sub-rem font sizes (0.55-0.7rem ≈ 8-11 px) and slim chip
+ * buttons (py-1, py-0.5) look fine. On phones those measurements
+ * fall below the iOS HIG / WCAG minimums:
+ *   - tap targets must be ≥ 44 × 44 px
+ *   - readable text starts at 12 px
+ * We don't want to overhaul every editorial card just to widen them
+ * for phones, so we add two small, scoped rules below that nudge
+ * any too-small chip or label up to the floor on small viewports.
+ * Crucially: we don't *grow* anything above its desktop size; we
+ * only lift the bottom.
+ */
+@media (max-width: 640px) {
+  /* Pill-shaped chips and small action buttons get an enforced
+   * minimum tap target. The padding rule only adds height when the
+   * button is shorter than 36 px, so anything already comfortable
+   * (e.g. the search trigger, primary CTAs) is untouched. */
+  button.rounded-full,
+  a.rounded-full {
+    min-height: 36px;
+  }
+  /* Floor on long-form running text. Tailwind's .text-xs is 0.75 rem
+   * = 12 px which is already at the threshold, but emotion-page
+   * captions sometimes drop to 0.6-0.65rem via inline style. Bring
+   * those back up to 0.75 rem on phones. */
+  [style*="0.55rem"],
+  [style*="0.6rem"],
+  [style*="0.65rem"],
+  [style*="0.7rem"] {
+    font-size: 0.75rem !important;
+    /* Keep the original letter-spacing so the "technical" voice
+     * (UPPERCASE + wide tracking) stays recognisable. */
+  }
+}
+
