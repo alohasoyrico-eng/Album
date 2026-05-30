@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CLANS, CLAN_MAP } from "@/data/ontology/clans";
 import { ClanView } from "@/components/editorial/ClanView";
-import { buildTypeSetUrl } from "@/lib/fontStylesheet";
+import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getClanPageData } from "@/lib/server/clanPageData";
 
 interface Params { id: string }
@@ -29,12 +29,16 @@ export default async function ClanPage({ params }: { params: Promise<Params> }) 
   if (!pageData) notFound();
 
   // Per-page font loading from the clan's pre-derived typeSet.
-  const fontUrl = buildTypeSetUrl(pageData.presentation.typeSet);
+  const { primary: titleFontUrl, supporting: bodyFontsUrl } =
+    buildTypeSetUrls(pageData.presentation.typeSet);
 
   return (
     <>
-      {fontUrl && (
-        <link rel="stylesheet" href={fontUrl} precedence="emergent-fonts" />
+      {titleFontUrl && (
+        <link rel="stylesheet" href={titleFontUrl} precedence="emergent-fonts" />
+      )}
+      {bodyFontsUrl && (
+        <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
       <ClanView pageData={pageData} />
     </>

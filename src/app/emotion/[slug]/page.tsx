@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { EMOTION_MAP, EMOTIONS } from "@/data/ontology/emotions";
 import { EmotionDetail } from "@/components/editorial/EmotionDetail";
 import { emotionTypeSet } from "@/lib/emotionFonts";
-import { buildTypeSetUrl } from "@/lib/fontStylesheet";
+import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getEmotionPageData } from "@/lib/server/emotionPageData";
 
 interface Props {
@@ -33,15 +33,21 @@ export default async function EmotionPage({ params }: Props) {
   const pageData = getEmotionPageData(decodeURIComponent(slug));
   if (!pageData) notFound();
 
-  // Per-page font loading: only the 4 fonts this emotion's typeset needs
-  // are pulled from Google Fonts CSS API. Catalogue can scale to any size
-  // without affecting this page's network cost.
-  const fontUrl = buildTypeSetUrl(emotionTypeSet(pageData.emotion.id));
+  // Per-page font loading. We split the typeset into two requests so
+  // they can use different `font-display` strategies — see
+  // lib/fontStylesheet.ts for the rationale. Title font uses `swap`
+  // (FOUT acceptable, identity visible); body/literary/technical use
+  // `optional` (no mid-paint jank).
+  const { primary: titleFontUrl, supporting: bodyFontsUrl } =
+    buildTypeSetUrls(emotionTypeSet(pageData.emotion.id));
 
   return (
     <>
-      {fontUrl && (
-        <link rel="stylesheet" href={fontUrl} precedence="emergent-fonts" />
+      {titleFontUrl && (
+        <link rel="stylesheet" href={titleFontUrl} precedence="emergent-fonts" />
+      )}
+      {bodyFontsUrl && (
+        <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
       <EmotionDetail pageData={pageData} />
     </>

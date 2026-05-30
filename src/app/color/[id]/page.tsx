@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { COLORS, COLOR_MAP } from "@/data/colors/colorResonance";
 import { ColorView } from "@/components/editorial/ColorView";
-import { buildTypeSetUrl } from "@/lib/fontStylesheet";
+import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getColorPageData } from "@/lib/server/colorPageData";
 
 interface Params { id: string }
@@ -26,12 +26,16 @@ export default async function ColorPage({ params }: { params: Promise<Params> })
   const pageData = getColorPageData(id);
   if (!pageData) notFound();
 
-  const fontUrl = buildTypeSetUrl(pageData.presentation.typeSet);
+  const { primary: titleFontUrl, supporting: bodyFontsUrl } =
+    buildTypeSetUrls(pageData.presentation.typeSet);
 
   return (
     <>
-      {fontUrl && (
-        <link rel="stylesheet" href={fontUrl} precedence="emergent-fonts" />
+      {titleFontUrl && (
+        <link rel="stylesheet" href={titleFontUrl} precedence="emergent-fonts" />
+      )}
+      {bodyFontsUrl && (
+        <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
       <ColorView pageData={pageData} />
     </>

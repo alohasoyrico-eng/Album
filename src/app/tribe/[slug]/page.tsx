@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { TRIBES, TRIBE_MAP } from "@/data/ontology/tribes";
 import { TribeView } from "@/components/editorial/TribeView";
 import type { TribeId } from "@/types";
-import { buildTypeSetUrl } from "@/lib/fontStylesheet";
+import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getTribePageData } from "@/lib/server/tribePageData";
 
 interface Params { slug: string }
@@ -27,12 +27,16 @@ export default async function TribePage({ params }: { params: Promise<Params> })
   const pageData = getTribePageData(slug);
   if (!pageData) notFound();
 
-  const fontUrl = buildTypeSetUrl(pageData.presentation.typeSet);
+  const { primary: titleFontUrl, supporting: bodyFontsUrl } =
+    buildTypeSetUrls(pageData.presentation.typeSet);
 
   return (
     <>
-      {fontUrl && (
-        <link rel="stylesheet" href={fontUrl} precedence="emergent-fonts" />
+      {titleFontUrl && (
+        <link rel="stylesheet" href={titleFontUrl} precedence="emergent-fonts" />
+      )}
+      {bodyFontsUrl && (
+        <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
       <TribeView pageData={pageData} />
     </>
