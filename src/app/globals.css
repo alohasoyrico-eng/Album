@@ -536,3 +536,23 @@ html[data-theme="dawn"] .glass-strong {
   }
 }
 
+/* ─── Emotional atmosphere (ambient layer) ──────────────────────────
+ *
+ * Opacity-only "breath" pulse on the fixed atmospheric layer. Replaces
+ * the previous transform+filter animation which forced full compositor
+ * passes every keyframe and tanked scroll on mobile.
+ *
+ * Opacity changes composite for free on the GPU. The rule only kicks
+ * in when the visitor hasn't requested reduced motion, so accessibility
+ * users get a fully static gradient. */
+@keyframes em-atmosphere-breath {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.86; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .em-atmosphere {
+    animation: em-atmosphere-breath var(--em-breath-period, 8s) ease-in-out infinite;
+    will-change: opacity;
+  }
+}
+

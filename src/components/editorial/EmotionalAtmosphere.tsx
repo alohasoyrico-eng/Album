@@ -1,68 +1,60 @@
-"use client";
+/**
+ * EmotionalAtmosphere — pure-CSS ambient layer behind the editorial pages.
+ *
+ * What it does
+ * ─────────────
+ * Renders a single fixed full-viewport `<div>` with a two-stop radial
+ * gradient in the emotion's colour. A slow opacity-only "breath" pulses
+ * the gradient subtly, tied to the emotion's `breathPeriod` via a CSS
+ * custom property.
+ *
+ * Why the rewrite
+ * ────────────────
+ * The previous implementation was a `"use client"` component running a
+ * `transform: scale + translate3d` + `filter: brightness saturate`
+ * animation forever. Transform and filter forces full compositor passes
+ * on every keyframe — on phones, while scrolling, the GPU was already
+ * busy compositing the page and adding atmosphere passes on top is
+ * what made the editorial routes feel slow.
+ *
+ * Now:
+ *   - Pure RSC (no `"use client"`, no hydration cost).
+ *   - Opacity-only animation. Browsers composite opacity for free.
+ *   - No `useEffect` setting CSS properties; the breath period flows
+ *     through `style={{ "--em-breath-period": ... }}` straight from
+ *     the server payload.
+ *   - Animation is guarded by `prefers-reduced-motion: no-preference`,
+ *     so visitors who opt out get the gradient frozen at full opacity.
+ */
 
-import { useEffect, useRef } from "react";
 import type { EmotionBehavior } from "@/lib/behavior";
+import type { CSSProperties } from "react";
 
 interface EmotionalAtmosphereProps {
   /** The emotion's derived color signature — the recipe result. */
   color: string;
-  /** Behavior profile that drives motion/intensity. */
+  /** Behavior profile that drives breath rhythm + intensity. */
   behavior: EmotionBehavior;
   /** Optional secondary color for layered drift (usually tribal). */
   secondaryColor?: string;
 }
 
-/**
- * A fixed full-viewport layer that emanates from the emotion's color and
- * breathes at the rhythm derived from its resonance. Sits behind all editorial
- * content. Combines:
- *
- *   - a slow-drifting radial wash (the emotional fog)
- *   - a faint secondary tint at the opposite corner
- *   - a soft breathing scale animation tied to the emotion's breath period
- *
- * The visual is deliberately ambient — never narrative. Just enough to make
- * the user feel that the room they entered has the temperature of this
- * emotion.
- */
 export function EmotionalAtmosphere({ color, behavior, secondaryColor }: EmotionalAtmosphereProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Sync CSS animation duration via inline style so it reacts to behavior changes
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.style.setProperty("--em-breath-period", `${behavior.breathPeriod}s`);
-    ref.current.style.setProperty("--em-atmosphere-intensity", String(behavior.atmosphereIntensity));
-  }, [behavior.breathPeriod, behavior.atmosphereIntensity]);
-
   const intensityHex = Math.round(behavior.atmosphereIntensity * 255).toString(16).padStart(2, "0");
   const secondaryHex = Math.round(behavior.atmosphereIntensity * 0.6 * 255).toString(16).padStart(2, "0");
-
+  const style: CSSProperties = {
+    background: `
+      radial-gradient(ellipse at 35% 18%, ${color}${intensityHex} 0%, transparent 55%),
+      radial-gradient(ellipse at 80% 80%, ${(secondaryColor ?? color)}${secondaryHex} 0%, transparent 60%)
+    `,
+    // Custom prop typed as string to satisfy TS' CSSProperties.
+    ["--em-breath-period" as string]: `${behavior.breathPeriod}s`,
+  };
   return (
     <div
-      ref={ref}
       aria-hidden
-      className="emotional-atmosphere pointer-events-none fixed inset-0 z-0"
-      style={{
-        background: `
-          radial-gradient(ellipse at 35% 18%, ${color}${intensityHex} 0%, transparent 55%),
-          radial-gradient(ellipse at 80% 80%, ${(secondaryColor ?? color)}${secondaryHex} 0%, transparent 60%)
-        `,
-        animation: `emotional-breathe var(--em-breath-period, 7s) ease-in-out infinite`,
-      }}
-    >
-      <style>{`
-        @keyframes emotional-breathe {
-          0%, 100% {
-            transform: scale(1) translate3d(0, 0, 0);
-            filter: brightness(1) saturate(1);
-          }
-          50% {
-            transform: scale(1.04) translate3d(8px, -6px, 0);
-            filter: brightness(1.06) saturate(1.05);
-          }
-        }
-      `}</style>
-    </div>
+      className="em-atmosphere pointer-events-none fixed inset-0 z-0"
+      style={style}
+    />
   );
 }
