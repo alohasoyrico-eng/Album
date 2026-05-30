@@ -410,6 +410,18 @@ img.loaded {
   transform: translateY(calc(var(--em-hover-lift, 4px) * -1));
 }
 
+/* Artwork cards in EmotionDetail emit ambient colour contamination on
+   hover. The colour is fed per-card through --em-artwork-glow (set
+   inline in the JSX) so the rule can live here and the page can stay
+   fully server-rendered (no React hover handlers). */
+.em-artwork-card {
+  box-shadow: 0 0 0 0 transparent;
+  transition: box-shadow 300ms ease;
+}
+.em-artwork-card:hover {
+  box-shadow: 0 12px 60px -10px var(--em-artwork-glow, transparent);
+}
+
 /* Peripheral haze — wraps margin content in a soft blur for low-clarity emotions */
 .em-periphery {
   backdrop-filter: blur(var(--em-periphery-blur, 0px));
