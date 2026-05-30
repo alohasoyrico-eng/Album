@@ -1,29 +1,53 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
+/**
+ * PathwayDrift — multi-hop semantic walk through the catalogue.
+ *
+ * The INITIAL candidates (the first three options offered when the page
+ * loads) are server-pre-computed and passed via `initialCandidates`.
+ * That means rendering the first hop costs zero JS for the resonance
+ * engine.
+ *
+ * When the visitor actually picks a candidate, we lazy-import the engine
+ * (and, transitively, the seed catalogues) to compute the next hop's
+ * candidates. That cost is deferred to genuine user interaction — most
+ * visitors never trigger it.
+ *
+ * Legacy fallback: if no `initialCandidates` are supplied but a
+ * `resonance` vector is, the component computes the first step on mount
+ * via the same lazy engine import (used by ClanView / TribeView until
+ * those pages get a server-pre-compute pass of their own).
+ */
+
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  getIndex,
-  queryResonance,
-  type IndexedEntity,
-  type EntityKind,
-} from "@/lib/resonance-engine";
 import type { ResonanceAxes } from "@/types";
-import { buildVector } from "@/lib/resonance-vector";
+import type { PathwayCandidate } from "@/lib/server/emotionPageData";
 
 interface PathwayDriftProps {
-  /** Resonance of the starting entity (the page we're on). */
-  resonance: ResonanceAxes;
-  /** ID of the starting entity. */
-  startId: string;
   /** Display name of the starting entity. */
   startLabel: string;
+  /** ID of the starting entity (used to seed the trail). */
+  startId: string;
   /** Color used for the path strokes & accents. */
   accentColor: string;
+  /** Preferred: server-pre-computed first-step candidates. */
+  initialCandidates?: PathwayCandidate[];
+  /** Legacy live mode: when no initial candidates are provided, this
+   * resonance vector triggers a lazy engine import to compute them. */
+  resonance?: ResonanceAxes;
 }
 
-const KIND_GLYPH: Record<EntityKind, string> = {
+type Hop = "start" | "expected" | "adjacent" | "anomaly";
+
+interface TrailNode {
+  id: string;
+  kind: string;
+  label: string;
+  fromMode: Hop;
+}
+
+const KIND_GLYPH: Record<string, string> = {
   emotion:      "●",
   color:        "■",
   typography:   "Aa",
@@ -40,7 +64,7 @@ const KIND_GLYPH: Record<EntityKind, string> = {
   theater:      "✚",
 };
 
-const KIND_LABEL: Record<EntityKind, string> = {
+const KIND_LABEL: Record<string, string> = {
   emotion:      "Emoción",
   color:        "Color",
   typography:   "Tipografía",
@@ -57,64 +81,126 @@ const KIND_LABEL: Record<EntityKind, string> = {
   theater:      "Teatro",
 };
 
-/**
- * Multi-hop semantic drift. The user starts at the current emotion. The
- * system proposes 3 candidate next-hops — sorted to encourage CROSS-DISCIPLINE
- * jumps. The user picks one; the trail accumulates; the next set of candidates
- * is computed from the new vector. After 5 hops, the user has traced a small
- * pathway through the semantic space — the kind of drift the original prompt
- * asks for:
- *
- *   Tenderness → warm silence → chamber music → faded gold → temporal
- *   softness → nostalgia → abandoned architecture → melancholy
- *
- * The drift is RESONANCE-DRIVEN, not curated. Each hop is the system inferring
- * what comes next.
- */
-export function PathwayDrift({ resonance, startId, startLabel, accentColor }: PathwayDriftProps) {
-  const [path, setPath] = useState<Array<IndexedEntity & { fromMode: "start" | "expected" | "adjacent" | "anomaly" }>>(
-    () => [{
-      id: startId,
-      kind: "emotion",
-      vector: buildVector(resonance),
-      label: startLabel,
-      fromMode: "start" as const,
-    }],
+const MODE_LABEL: Record<"expected" | "adjacent" | "anomaly", string> = {
+  expected: "GRAVEDAD",
+  adjacent: "DRIFT",
+  anomaly:  "ANOMALÍA",
+};
+
+const MODE_HINT: Record<"expected" | "adjacent" | "anomaly", string> = {
+  expected: "El vecino más obvio. Sigue la fuerza principal del campo.",
+  adjacent: "La zona intermedia. La resonancia empieza a doblar hacia otro sentido.",
+  anomaly:  "Un nodo lejos en general, pero unido por un eje compartido fuerte. Aquí la deriva sorprende.",
+};
+
+export function PathwayDrift({
+  startLabel,
+  startId,
+  accentColor,
+  initialCandidates,
+  resonance,
+}: PathwayDriftProps) {
+  const [path, setPath] = useState<TrailNode[]>(() => [
+    { id: startId, kind: "emotion", label: startLabel, fromMode: "start" },
+  ]);
+  const [candidates, setCandidates] = useState<PathwayCandidate[]>(
+    initialCandidates ?? [],
   );
+  const [busy, setBusy] = useState(false);
 
-  // For the current head of the path, compute candidate next hops.
-  // We mix 1 expected (gravitational core) + 1 adjacent (drift) + 1 anomaly (surprise).
-  const candidates = useMemo(() => {
-    const head = path[path.length - 1];
-    const excluded = path.map((p) => p.id);
-
-    const seenKindAtHead = head.kind;
-
-    const pick = (mode: "expected" | "adjacent" | "anomaly") => {
-      const hits = queryResonance(head.vector, {
-        mode,
-        excludeIds: excluded,
-        limit: 8,
-      });
-      // Prefer cross-discipline candidates
-      const crossKind = hits.find((h) => h.entity.kind !== seenKindAtHead);
-      return (crossKind ?? hits[0])?.entity;
-    };
-
-    const out: Array<IndexedEntity & { fromMode: "expected" | "adjacent" | "anomaly" }> = [];
-    const ex = pick("expected");
-    if (ex) out.push({ ...ex, fromMode: "expected" });
-    const ad = pick("adjacent");
-    if (ad && !out.some((o) => o.id === ad.id)) out.push({ ...ad, fromMode: "adjacent" });
-    const an = pick("anomaly");
-    if (an && !out.some((o) => o.id === an.id)) out.push({ ...an, fromMode: "anomaly" });
-    return out;
-  }, [path]);
+  // Legacy live-mode bootstrap: if the caller didn't pre-compute the
+  // first step, lazy-load the engine to fill it in.
+  useEffect(() => {
+    if (initialCandidates || !resonance) return;
+    let cancelled = false;
+    void (async () => {
+      const { queryResonance } = await import("@/lib/resonance-engine");
+      const { buildVector } = await import("@/lib/resonance-vector");
+      const v = buildVector(resonance);
+      const pick = (mode: "expected" | "adjacent" | "anomaly"): PathwayCandidate | null => {
+        const hits = queryResonance(v, {
+          mode,
+          excludeIds: [startId],
+          limit: 8,
+        });
+        const cross = hits.find((h) => h.entity.kind !== "emotion");
+        const chosen = (cross ?? hits[0])?.entity;
+        if (!chosen) return null;
+        return {
+          id: chosen.id,
+          kind: chosen.kind,
+          label: chosen.label,
+          creator: chosen.creator,
+          year: chosen.year,
+          fromMode: mode,
+        };
+      };
+      const next: PathwayCandidate[] = [];
+      for (const m of ["expected", "adjacent", "anomaly"] as const) {
+        const p = pick(m);
+        if (p && !next.some((x) => x.id === p.id)) next.push(p);
+      }
+      if (!cancelled) setCandidates(next);
+    })();
+    return () => { cancelled = true; };
+  }, [initialCandidates, resonance, startId]);
 
   const isMaxed = path.length >= 7;
 
+  // When the user picks a candidate, append to the trail and compute the
+  // next set of candidates. This is the moment we accept the engine
+  // import — most visitors never reach it.
+  async function pickCandidate(c: PathwayCandidate) {
+    if (busy || isMaxed) return;
+    setBusy(true);
+    const nextPath: TrailNode[] = [
+      ...path,
+      { id: c.id, kind: c.kind, label: c.label, fromMode: c.fromMode },
+    ];
+    setPath(nextPath);
+    setCandidates([]);
+
+    try {
+      const { getIndex, queryResonance } = await import("@/lib/resonance-engine");
+      const index = getIndex();
+      const head = index.find((e) => e.id === c.id);
+      if (!head) {
+        setBusy(false);
+        return;
+      }
+      const excluded = nextPath.map((n) => n.id);
+      const pick = (mode: "expected" | "adjacent" | "anomaly"): PathwayCandidate | null => {
+        const hits = queryResonance(head.vector, {
+          mode,
+          excludeIds: excluded,
+          limit: 8,
+        });
+        const cross = hits.find((h) => h.entity.kind !== head.kind);
+        const chosen = (cross ?? hits[0])?.entity;
+        if (!chosen) return null;
+        return {
+          id: chosen.id,
+          kind: chosen.kind,
+          label: chosen.label,
+          creator: chosen.creator,
+          year: chosen.year,
+          fromMode: mode,
+        };
+      };
+      const next: PathwayCandidate[] = [];
+      for (const m of ["expected", "adjacent", "anomaly"] as const) {
+        const p = pick(m);
+        if (p && !next.some((x) => x.id === p.id)) next.push(p);
+      }
+      setCandidates(next);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const reset = () => {
-    setPath([path[0]]);
+    setPath([{ id: startId, kind: "emotion", label: startLabel, fromMode: "start" }]);
+    setCandidates(initialCandidates ?? []);
   };
 
   return (
@@ -187,6 +273,7 @@ export function PathwayDrift({ resonance, startId, startLabel, accentColor }: Pa
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
             >
               SIGUIENTE NODO · ELIGE LA DIRECCIÓN
+              {busy && <span className="ml-2 italic opacity-60">cargando…</span>}
             </p>
             <div className="grid sm:grid-cols-3 gap-3">
               {candidates.map((c) => (
@@ -194,7 +281,8 @@ export function PathwayDrift({ resonance, startId, startLabel, accentColor }: Pa
                   key={`${c.kind}-${c.id}`}
                   candidate={c}
                   accentColor={accentColor}
-                  onPick={() => setPath((p) => [...p, c])}
+                  onPick={() => pickCandidate(c)}
+                  disabled={busy}
                 />
               ))}
             </div>
@@ -218,13 +306,7 @@ export function PathwayDrift({ resonance, startId, startLabel, accentColor }: Pa
 
 // ─── Path chip — a node already added to the trail ───────────────────────────
 
-function PathChip({
-  node,
-  accentColor,
-}: {
-  node: IndexedEntity & { fromMode: "start" | "expected" | "adjacent" | "anomaly" };
-  accentColor: string;
-}) {
+function PathChip({ node, accentColor }: { node: TrailNode; accentColor: string }) {
   const isStart = node.fromMode === "start";
   return (
     <div
@@ -244,7 +326,7 @@ function PathChip({
         }}
         aria-hidden
       >
-        {KIND_GLYPH[node.kind]}
+        {KIND_GLYPH[node.kind] ?? "·"}
       </span>
       <span
         className="text-xs text-ink/85"
@@ -266,31 +348,22 @@ function PathChip({
 
 // ─── Candidate card ──────────────────────────────────────────────────────────
 
-const MODE_LABEL: Record<"expected" | "adjacent" | "anomaly", string> = {
-  expected:  "GRAVEDAD",
-  adjacent:  "DRIFT",
-  anomaly:   "ANOMALÍA",
-};
-
-const MODE_HINT: Record<"expected" | "adjacent" | "anomaly", string> = {
-  expected:  "El vecino más obvio. Sigue la fuerza principal del campo.",
-  adjacent:  "La zona intermedia. La resonancia empieza a doblar hacia otro sentido.",
-  anomaly:   "Un nodo lejos en general, pero unido por un eje compartido fuerte. Aquí la deriva sorprende.",
-};
-
 function CandidateCard({
   candidate,
   accentColor,
   onPick,
+  disabled,
 }: {
-  candidate: IndexedEntity & { fromMode: "expected" | "adjacent" | "anomaly" };
+  candidate: PathwayCandidate;
   accentColor: string;
   onPick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onPick}
-      className="em-card group block text-left rounded-xl border p-4 transition-all duration-300 hover:bg-white/[0.015]"
+      disabled={disabled}
+      className="em-card group block text-left rounded-xl border p-4 transition-all duration-300 hover:bg-white/[0.015] disabled:opacity-50 disabled:cursor-wait"
       style={{
         borderColor: candidate.fromMode === "anomaly" ? `${accentColor}40` : "var(--album-border)",
         backgroundColor: candidate.fromMode === "anomaly" ? `${accentColor}06` : "transparent",
@@ -314,7 +387,7 @@ function CandidateCard({
           className="text-[0.55rem] text-ink-faint"
           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
         >
-          {KIND_LABEL[candidate.kind].toUpperCase()}
+          {(KIND_LABEL[candidate.kind] ?? candidate.kind).toUpperCase()}
         </span>
       </div>
       <div className="flex items-start gap-2 mb-2">
@@ -323,7 +396,7 @@ function CandidateCard({
           style={{ color: accentColor, fontFamily: "var(--font-display)" }}
           aria-hidden
         >
-          {KIND_GLYPH[candidate.kind]}
+          {KIND_GLYPH[candidate.kind] ?? "·"}
         </span>
         <div className="flex-1 min-w-0">
           <p
@@ -352,6 +425,3 @@ function CandidateCard({
     </button>
   );
 }
-
-// Suppress import warning during build
-void getIndex;

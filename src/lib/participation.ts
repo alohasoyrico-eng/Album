@@ -28,11 +28,21 @@
 import { supabase, isParticipationEnabled } from "./supabaseClient";
 import { ensureSessionRow, getSessionId } from "./sessionId";
 import type { Claim, ClaimSource, LensKey } from "@/types/claims";
+// NOTE on imports: cultural-claims imports all 11 seed catalogues
+// (artworks-met, poetry-pdb, literature-ol, ...) which collectively ship
+// ~600 KB to the client. Even though `pushToAdapter` only references
+// `registerCulturalOverlay` in the rare path where a remote claim
+// targets a cultural entity, a STATIC import drags the whole tree into
+// every chunk that imports this file (notably EmotionDetail → big route
+// bundle). We keep the four light adapters as static imports and lazy-
+// load the heavy cultural one on first cultural claim. Same idea for
+// the type-only `CulturalClaims` import: it's `import type`, so it
+// erases at build time and ships zero bytes.
 import { registerOverlay as registerEmotionOverlay } from "@/data/ontology/emotions-claims";
 import { registerColorOverlay } from "@/data/colors/colors-claims";
 import { registerClanOverlay } from "@/data/ontology/clans-claims";
 import { registerTribeOverlay } from "@/data/ontology/tribes-claims";
-import { registerCulturalOverlay, type CulturalKind } from "@/data/seed/cultural-claims";
+import type { CulturalKind } from "@/data/seed/cultural-claims";
 import type { CulturalClaims } from "./makeClaimAdapter";
 
 // ─── Entity kinds we accept claims for ────────────────────────────────
@@ -88,7 +98,6 @@ function rowToClaim(row: ClaimRow): Claim<unknown> {
 
 function pushToAdapter(row: ClaimRow) {
   const claim = rowToClaim(row);
-  // Each adapter takes Partial<XClaims> shaped { fieldPath: [claim] }.
   const overlay: Record<string, Claim<unknown>[]> = {
     [row.field_path]: [claim],
   };
@@ -106,11 +115,16 @@ function pushToAdapter(row: ClaimRow) {
       registerTribeOverlay(row.entity_id, overlay as Parameters<typeof registerTribeOverlay>[1]);
       break;
     default:
-      registerCulturalOverlay(
-        row.entity_kind as CulturalKind,
-        row.entity_id,
-        overlay as Partial<CulturalClaims>,
-      );
+      // Lazy-load the cultural-claims adapter — its import tree pulls in
+      // every cultural seed file (~600 KB). 99% of emotion-page sessions
+      // never receive a cultural claim, so this stays unloaded.
+      void import("@/data/seed/cultural-claims").then(({ registerCulturalOverlay }) => {
+        registerCulturalOverlay(
+          row.entity_kind as CulturalKind,
+          row.entity_id,
+          overlay as Partial<CulturalClaims>,
+        );
+      });
   }
 }
 

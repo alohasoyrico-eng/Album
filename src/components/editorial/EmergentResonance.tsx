@@ -1,24 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+/**
+ * EmergentResonance — purely presentational since the perf refactor.
+ *
+ * The resonance hits are computed on the server (see
+ * `src/lib/server/emotionPageData.ts`) and passed in as `hitsByMode`.
+ * This file no longer imports the resonance engine or any seed
+ * catalogues, which lets Next bundle this chunk free of the ~600 KB
+ * cultural data that the engine previously dragged in.
+ *
+ * Switching modes just reads a different bucket from the prop — no
+ * recomputation, no allocations, no engine round-trip.
+ */
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  resonateFrom,
-  type ResonanceHit,
-  type ResonanceMode,
-  type EntityKind,
-} from "@/lib/resonance-engine";
 import { AXIS_LABEL_ES } from "@/lib/resonance-vector";
 import type { ResonanceAxes } from "@/types";
+import type {
+  SerialisableHit,
+  EmergentHitsByMode,
+} from "@/lib/server/emotionPageData";
+
+type ResonanceMode = "expected" | "adjacent" | "anomaly" | "mixed";
 
 interface EmergentResonanceProps {
-  /** The query entity's resonance — usually an emotion or a color. */
-  resonance: ResonanceAxes;
-  /** ID of the entity itself, so it doesn't surface as a hit against itself. */
-  excludeId: string;
-  /** Optional kind to also exclude (e.g. don't compete with same-kind curations). */
-  excludeKinds?: EntityKind[];
+  /** Preferred: server-pre-computed hits, one bucket per mode. When
+   * supplied, this component imports zero seed catalogues. */
+  hitsByMode?: EmergentHitsByMode;
+  /** Legacy live mode (Clan/Tribe pages): pass a resonance vector and
+   * the component will lazy-load the engine on mount to compute hits.
+   * Costs a deferred chunk but keeps those pages working without a
+   * server-pre-compute pass. */
+  resonance?: ResonanceAxes;
+  excludeId?: string;
   /** Accent color used for highlights — usually the entity's recipe color. */
   accentColor: string;
   /** Title for the section (default copy below). */
@@ -48,7 +64,7 @@ const MODE_LABEL: Record<ResonanceMode, { es: string; description: string }> = {
   },
 };
 
-const KIND_GLYPH: Record<EntityKind, string> = {
+const KIND_GLYPH: Record<string, string> = {
   emotion:      "●",
   color:        "■",
   typography:   "Aa",
@@ -65,7 +81,7 @@ const KIND_GLYPH: Record<EntityKind, string> = {
   theater:      "✚",
 };
 
-const KIND_LABEL: Record<EntityKind, string> = {
+const KIND_LABEL: Record<string, string> = {
   emotion:      "Emoción",
   color:        "Color",
   typography:   "Tipografía",
@@ -82,46 +98,58 @@ const KIND_LABEL: Record<EntityKind, string> = {
   theater:      "Teatro",
 };
 
-/**
- * EmergentResonance — a section that shows COMPUTED neighbors instead of
- * curated lists. The neighborhood is derived by cosine similarity over the
- * full vector index. Each hit is labeled with the top axes both vectors
- * share (the explanation of WHY they resonate) and the axes where they
- * most disagree (the tension that makes the hit interesting).
- *
- * Modes:
- *   - 'mixed'    — 70/20/10 expected/adjacent/anomaly
- *   - 'expected' — only the obvious neighborhood
- *   - 'adjacent' — the drift zone
- *   - 'anomaly'  — only surprise resonances
- */
 export function EmergentResonance({
+  hitsByMode,
   resonance,
   excludeId,
-  excludeKinds,
   accentColor,
   title,
 }: EmergentResonanceProps) {
   const [mode, setMode] = useState<ResonanceMode>("mixed");
+  // Legacy live-mode state: holds engine-computed hits per mode once the
+  // lazy import resolves. Pre-computed mode bypasses this entirely.
+  const [liveHits, setLiveHits] = useState<EmergentHitsByMode | null>(null);
 
-  const hits = useMemo(() => {
-    return resonateFrom(resonance, {
-      mode,
-      excludeIds: [excludeId],
-      limit: 12,
-    }).filter((h) => !excludeKinds?.includes(h.entity.kind));
-  }, [resonance, mode, excludeId, excludeKinds]);
+  useEffect(() => {
+    if (hitsByMode || !resonance) return;
+    let cancelled = false;
+    // Lazy-load the engine ONLY when the caller didn't supply pre-computed
+    // hits. Keeps the EmotionDetail bundle free of catalogue weight.
+    void (async () => {
+      const { resonateFrom } = await import("@/lib/resonance-engine");
+      const trimOne = (h: { entity: { id: string; kind: string; label: string; creator?: string; year?: string | number; description?: string; imageUrl?: string; href?: string }; similarity: number; mode: "expected" | "adjacent" | "anomaly"; sharedAxes: Array<{ axis: string; shared: number }>; tensionAxes: Array<{ axis: string; shared: number }> }): SerialisableHit => ({
+        entity: h.entity,
+        similarity: h.similarity,
+        mode: h.mode,
+        sharedAxes: h.sharedAxes.map((a) => ({ axis: a.axis, shared: a.shared })),
+        tensionAxes: h.tensionAxes.map((a) => ({ axis: a.axis, shared: a.shared })),
+      });
+      const q = (m: ResonanceMode) =>
+        resonateFrom(resonance, {
+          mode: m,
+          excludeIds: excludeId ? [excludeId] : [],
+          limit: 12,
+        }).map(trimOne);
+      if (cancelled) return;
+      setLiveHits({
+        mixed: q("mixed"),
+        expected: q("expected"),
+        adjacent: q("adjacent"),
+        anomaly: q("anomaly"),
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [hitsByMode, resonance, excludeId]);
 
-  // Group hits by mode for the visual band layout
-  const banded = useMemo(() => {
-    const expected: ResonanceHit[] = [];
-    const adjacent: ResonanceHit[] = [];
-    const anomaly:  ResonanceHit[] = [];
-    for (const h of hits) {
-      (h.mode === "expected" ? expected : h.mode === "adjacent" ? adjacent : anomaly).push(h);
-    }
-    return { expected, adjacent, anomaly };
-  }, [hits]);
+  const activeHits = hitsByMode ?? liveHits;
+  const hits = activeHits?.[mode] ?? [];
+
+  // Group hits by their per-hit band for the visual layout.
+  const banded = {
+    expected: hits.filter((h) => h.mode === "expected"),
+    adjacent: hits.filter((h) => h.mode === "adjacent"),
+    anomaly:  hits.filter((h) => h.mode === "anomaly"),
+  };
 
   return (
     <section className="mb-16">
@@ -133,7 +161,6 @@ export function EmergentResonance({
           >
             {title ?? "RESONANCIA EMERGENTE"}
           </h2>
-          {/* Mode selector */}
           <div className="flex gap-1">
             {(Object.keys(MODE_LABEL) as ResonanceMode[]).map((m) => {
               const active = mode === m;
@@ -177,7 +204,6 @@ export function EmergentResonance({
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           className="grid gap-8"
         >
-          {/* In mixed mode, show all three bands. In single modes, show just the active band. */}
           {(mode === "mixed" || mode === "expected") && banded.expected.length > 0 && (
             <BandView
               title="VECINDARIO ESPERADO"
@@ -234,7 +260,7 @@ function BandView({
 }: {
   title: string;
   subtitle: string;
-  hits: ResonanceHit[];
+  hits: SerialisableHit[];
   accentColor: string;
   isAnomaly?: boolean;
   showStaggerDelay?: boolean;
@@ -275,7 +301,7 @@ function BandView({
 
 // ─── Single hit card ──────────────────────────────────────────────────────────
 
-function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: string; delay: number }) {
+function HitCard({ hit, accentColor, delay }: { hit: SerialisableHit; accentColor: string; delay: number }) {
   const { entity, similarity, sharedAxes, mode } = hit;
   const topSharedAxes = sharedAxes.slice(0, 3);
   const Tag: React.ElementType = entity.href ? Link : "div";
@@ -295,7 +321,6 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
         }}
       >
         <div className="flex items-start gap-3 mb-2">
-          {/* Glyph + kind */}
           <div
             className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
             style={{
@@ -306,7 +331,7 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
             }}
             aria-hidden
           >
-            {KIND_GLYPH[entity.kind]}
+            {KIND_GLYPH[entity.kind] ?? "·"}
           </div>
           <div className="flex-1 min-w-0">
             <p
@@ -319,12 +344,11 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
               className="text-[0.6rem] text-ink-faint mt-0.5"
               style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
             >
-              {KIND_LABEL[entity.kind].toUpperCase()}
+              {(KIND_LABEL[entity.kind] ?? entity.kind).toUpperCase()}
               {entity.creator ? ` · ${entity.creator}` : ""}
               {entity.year ? ` · ${entity.year}` : ""}
             </p>
           </div>
-          {/* Similarity numeric */}
           <span
             className="text-[0.55rem] text-ink-faint tabular-nums flex-shrink-0"
             style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.1em" }}
@@ -334,7 +358,6 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
           </span>
         </div>
 
-        {/* Description */}
         {entity.description && (
           <p
             className="text-xs text-ink-muted/65 italic leading-relaxed mb-3 line-clamp-2"
@@ -344,7 +367,6 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
           </p>
         )}
 
-        {/* Axes — the explanation of WHY they resonate */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span
             className="text-[0.55rem] text-ink-faint"
@@ -360,9 +382,9 @@ function HitCard({ hit, accentColor, delay }: { hit: ResonanceHit; accentColor: 
                 backgroundColor: `${accentColor}15`,
                 fontFamily: "var(--font-editorial)",
               }}
-              title={`Ambos comparten ${AXIS_LABEL_ES[a.axis]} en ${Math.round(a.shared * 100)}%`}
+              title={`Ambos comparten ${AXIS_LABEL_ES[a.axis as keyof typeof AXIS_LABEL_ES] ?? a.axis} en ${Math.round(a.shared * 100)}%`}
             >
-              {AXIS_LABEL_ES[a.axis]}
+              {AXIS_LABEL_ES[a.axis as keyof typeof AXIS_LABEL_ES] ?? a.axis}
             </span>
           ))}
         </div>

@@ -507,8 +507,7 @@ export function EmotionDetail({ pageData }: Props) {
           custom={9.5}
         >
           <EmergentResonance
-            resonance={emotion.resonance}
-            excludeId={emotion.id}
+            hitsByMode={pageData.emergentHits}
             accentColor={recipe.finalHex}
           />
         </motion.div>
@@ -522,9 +521,9 @@ export function EmotionDetail({ pageData }: Props) {
           custom={9.7}
         >
           <PathwayDrift
-            resonance={emotion.resonance}
             startId={emotion.id}
             startLabel={emotion.name}
+            initialCandidates={pageData.pathwayInitialCandidates}
             accentColor={recipe.finalHex}
           />
         </motion.div>
@@ -969,7 +968,7 @@ export function EmotionDetail({ pageData }: Props) {
 
         {/* Participation module */}
         <motion.div variants={reveal} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-15% 0px" }} custom={15} className="mb-16">
-          <ParticipationModule emotion={emotion} tribe={tribe} />
+          <ParticipationModule emotion={emotion} tribe={tribe} options={pageData.participationOptions} />
         </motion.div>
 
         {/* Actions */}

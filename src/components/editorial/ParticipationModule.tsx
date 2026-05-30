@@ -3,15 +3,17 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Emotion, Tribe } from "@/types";
-import { COLORS } from "@/data/colors/colorResonance";
-import { TYPOGRAPHY } from "@/data/typography/fonts";
-import { EMOTIONS } from "@/data/ontology/emotions";
 import { recordVote, getVoteResults } from "@/lib/analytics";
 import { useParticipationStore } from "@/lib/store";
+import type { ParticipationOptions } from "@/lib/server/emotionPageData";
 
 interface Props {
   emotion: Emotion;
   tribe: Tribe;
+  /** Server-supplied option lists — replaces the COLORS / TYPOGRAPHY /
+   * EMOTIONS imports that previously dragged those catalogues into the
+   * client bundle. */
+  options: ParticipationOptions;
 }
 
 type PromptType = "color" | "typography" | "transition" | "temperature";
@@ -23,7 +25,7 @@ interface Prompt {
   options: { id: string; label: string; value: string; color?: string }[];
 }
 
-export function ParticipationModule({ emotion, tribe }: Props) {
+export function ParticipationModule({ emotion, tribe, options }: Props) {
   const { hasAnswered, markAnswered } = useParticipationStore();
   const [currentPrompt, setCurrentPrompt] = useState<Prompt | null>(null);
   const [answered, setAnswered] = useState(false);
@@ -35,7 +37,7 @@ export function ParticipationModule({ emotion, tribe }: Props) {
       id: `${emotion.id}_color`,
       type: "color",
       question: `¿Qué color resuena más con ${emotion.name}?`,
-      options: COLORS.slice(0, 4).map((c) => ({
+      options: options.colors.map((c) => ({
         id: c.id,
         label: c.nameEs,
         value: c.id,
@@ -57,7 +59,7 @@ export function ParticipationModule({ emotion, tribe }: Props) {
       id: `${emotion.id}_typography`,
       type: "typography",
       question: `¿Qué tipografía sientes más cercana a ${emotion.name}?`,
-      options: TYPOGRAPHY.slice(0, 4).map((t) => ({
+      options: options.typographies.map((t) => ({
         id: t.id,
         label: t.name,
         value: t.id,
@@ -67,16 +69,11 @@ export function ParticipationModule({ emotion, tribe }: Props) {
       id: `${emotion.id}_transition`,
       type: "transition",
       question: `¿Qué emoción suele venir después de ${emotion.name}?`,
-      options: [
-        ...(emotion.neighbors.slice(0, 2).map((id) => {
-          const e = EMOTIONS.find((em) => em.id === id);
-          return e ? { id: e.id, label: e.name, value: e.id } : null;
-        }).filter(Boolean) as { id: string; label: string; value: string }[]),
-        ...(emotion.transitions.slice(0, 2).map((t) => {
-          const e = EMOTIONS.find((em) => em.id === t.to);
-          return e ? { id: e.id, label: e.name, value: e.id } : null;
-        }).filter(Boolean) as { id: string; label: string; value: string }[]),
-      ].slice(0, 4),
+      // Transitions are server-pre-resolved (id → display name) so this
+      // module needs no EMOTIONS catalogue.
+      options: options.transitions
+        .slice(0, 4)
+        .map((t) => ({ id: t.to, label: t.toName, value: t.to })),
     },
   ];
 

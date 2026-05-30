@@ -4,10 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import clsx from "clsx";
 import { ThemeToggle } from "./ThemeToggle";
-import { SearchPalette } from "./SearchPalette";
 import { LensSwitcher } from "./LensSwitcher";
+
+// SearchPalette pulls in the unified search index — every emotion, color,
+// typography, artwork, etc. (~1.3 k entries). That index is useless until
+// the user actually opens the palette, so we lazy-load it. The trigger
+// stays in the nav; the heavy chunk arrives on Cmd+K / button-click. This
+// alone removes ~250-300 KB from every page's First Load JS, since the
+// Navigation is rendered in the root layout and otherwise leaked into
+// every route's shared chunks.
+const SearchPalette = dynamic(
+  () => import("./SearchPalette").then((m) => m.SearchPalette),
+  { ssr: false },
+);
 
 const NAV_ITEMS = [
   { href: "/", label: "Mapa", description: "Constelación semántica" },
@@ -155,8 +167,12 @@ export function Navigation() {
         )}
       </AnimatePresence>
 
-      {/* Global search palette — Cmd/Ctrl+K or click the search trigger */}
-      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {/* Global search palette — Cmd/Ctrl+K or click the search trigger.
+          Mount only after the user actually wants to search: keeps the
+          ~250-300 KB search-index chunk out of every page's First Load. */}
+      {searchOpen && (
+        <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      )}
     </>
   );
 }

@@ -74,8 +74,67 @@ import { deriveTexture, type EmotionTexture } from "@/lib/emotionTexture";
 import { inkVars, blendHex } from "@/lib/contrast";
 import { emotionMotion, motionCssVars } from "@/lib/emotionMotion";
 import type { MotionPattern } from "@/data/motion/patterns";
-import { resonateFrom } from "@/lib/resonance-engine";
+import {
+  resonateFrom,
+  queryResonance,
+  type ResonanceHit,
+  type ResonanceMode,
+} from "@/lib/resonance-engine";
+import { buildVector } from "@/lib/resonance-vector";
+import { COLORS } from "@/data/colors/colorResonance";
+import { TYPOGRAPHY } from "@/data/typography/fonts";
+import { EMOTIONS } from "@/data/ontology/emotions";
 import type { CSSProperties } from "react";
+
+/** A resonance hit trimmed for transport — the full `vector` arrays
+ * are stripped (no client renders them; they'd waste payload).
+ * `entity.id` is enough for the client to re-resolve if it ever lazy-
+ * loads the engine for follow-up queries. */
+export interface SerialisableHit {
+  entity: {
+    id: string;
+    kind: string;
+    label: string;
+    creator?: string;
+    year?: string | number;
+    description?: string;
+    imageUrl?: string;
+    href?: string;
+  };
+  similarity: number;
+  mode: "expected" | "adjacent" | "anomaly";
+  sharedAxes: Array<{ axis: string; shared: number }>;
+  tensionAxes: Array<{ axis: string; shared: number }>;
+}
+
+/** Pre-computed EmergentResonance hits, one bucket per mode. The client
+ * component just reads from these — no engine import. */
+export interface EmergentHitsByMode {
+  mixed: SerialisableHit[];
+  expected: SerialisableHit[];
+  adjacent: SerialisableHit[];
+  anomaly: SerialisableHit[];
+}
+
+/** Initial PathwayDrift candidates (one per band). After the first
+ * click, PathwayDrift lazy-loads the resonance engine to compute the
+ * next hop — that cost is deferred to actual interaction. */
+export interface PathwayCandidate {
+  id: string;
+  kind: string;
+  label: string;
+  creator?: string;
+  year?: string | number;
+  fromMode: "expected" | "adjacent" | "anomaly";
+}
+
+/** Trimmed entries used by ParticipationModule voting options — keeps
+ * the module's client chunk free of COLORS/TYPOGRAPHY/EMOTIONS imports. */
+export interface ParticipationOptions {
+  colors: Array<{ id: string; nameEs: string; hex: string }>;
+  typographies: Array<{ id: string; name: string; googleFontFamily: string }>;
+  transitions: Array<{ to: string; toName: string; description: string }>;
+}
 
 /** Trimmed neighbor/antonym entry. */
 export interface RelatedEmotionRef {
@@ -132,6 +191,12 @@ export interface EmotionPageData {
   // Relational refs (trimmed).
   relatedEmotions: RelatedEmotionRef[];
   transitions: TransitionRef[];
+
+  // Pre-computed resonance-engine output — the EmergentResonance and
+  // PathwayDrift components no longer import the engine on the client.
+  emergentHits: EmergentHitsByMode;
+  pathwayInitialCandidates: PathwayCandidate[];
+  participationOptions: ParticipationOptions;
 }
 
 const TRIBE_COLOR_BY_ID: Record<string, string> = Object.fromEntries(
@@ -228,6 +293,95 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
     }];
   });
 
+  // ─── Pre-compute resonance-engine output ────────────────────────────
+  // Top-12 hits per mode so the EmergentResonance UI can switch modes
+  // without re-querying the engine on the client.
+  const trimHit = (h: ResonanceHit): SerialisableHit => ({
+    entity: {
+      id: h.entity.id,
+      kind: h.entity.kind,
+      label: h.entity.label,
+      creator: h.entity.creator,
+      year: h.entity.year,
+      description: h.entity.description,
+      imageUrl: h.entity.imageUrl,
+      href: h.entity.href,
+    },
+    similarity: h.similarity,
+    mode: h.mode,
+    sharedAxes: h.sharedAxes.map((a) => ({ axis: a.axis, shared: a.shared })),
+    tensionAxes: h.tensionAxes.map((a) => ({ axis: a.axis, shared: a.shared })),
+  });
+
+  const queryHits = (mode: ResonanceMode) =>
+    resonateFrom(emotion.resonance, {
+      mode,
+      excludeIds: [emotion.id],
+      limit: 12,
+    }).map(trimHit);
+
+  const emergentHits: EmergentHitsByMode = {
+    mixed: queryHits("mixed"),
+    expected: queryHits("expected"),
+    adjacent: queryHits("adjacent"),
+    anomaly: queryHits("anomaly"),
+  };
+
+  // Initial PathwayDrift candidates: one expected + one adjacent + one
+  // anomaly, each preferring cross-discipline picks (the original UX).
+  const pathwayQueryVector = buildVector(emotion.resonance);
+  const pickInitial = (mode: "expected" | "adjacent" | "anomaly"): PathwayCandidate | null => {
+    const hits = queryResonance(pathwayQueryVector, {
+      mode,
+      excludeIds: [emotion.id],
+      limit: 8,
+    });
+    const cross = hits.find((h) => h.entity.kind !== "emotion");
+    const chosen = (cross ?? hits[0])?.entity;
+    if (!chosen) return null;
+    return {
+      id: chosen.id,
+      kind: chosen.kind,
+      label: chosen.label,
+      creator: chosen.creator,
+      year: chosen.year,
+      fromMode: mode,
+    };
+  };
+  const pathwayInitialCandidates: PathwayCandidate[] = (
+    [pickInitial("expected"), pickInitial("adjacent"), pickInitial("anomaly")]
+      .filter((c): c is PathwayCandidate => c !== null)
+  );
+  // De-duplicate (a tiny catalogue could yield the same top hit in
+  // adjacent and anomaly buckets).
+  const seenIds = new Set<string>();
+  const pathwayInitialCandidatesDeduped = pathwayInitialCandidates.filter((c) => {
+    if (seenIds.has(c.id)) return false;
+    seenIds.add(c.id);
+    return true;
+  });
+
+  // ─── Pre-trimmed participation options ──────────────────────────────
+  // Replaces ParticipationModule's COLORS / TYPOGRAPHY / EMOTIONS imports
+  // with a small server-supplied list.
+  const participationOptions: ParticipationOptions = {
+    colors: COLORS.slice(0, 4).map((c) => ({
+      id: c.id,
+      nameEs: c.nameEs,
+      hex: c.hex,
+    })),
+    typographies: TYPOGRAPHY.slice(0, 4).map((t) => ({
+      id: t.id,
+      name: t.name,
+      googleFontFamily: t.googleFontFamily,
+    })),
+    transitions: (emotion.transitions ?? []).flatMap((t) => {
+      const target = EMOTIONS.find((e) => e.id === t.to);
+      if (!target) return [];
+      return [{ to: t.to, toName: target.name, description: t.description }];
+    }),
+  };
+
   const transitions: TransitionRef[] = (emotion.transitions ?? []).flatMap((t) => {
     const target = EMOTION_MAP.get(t.to);
     if (!target) return [];
@@ -272,5 +426,8 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
     relatedTheater,
     relatedEmotions,
     transitions,
+    emergentHits,
+    pathwayInitialCandidates: pathwayInitialCandidatesDeduped,
+    participationOptions,
   };
 }
