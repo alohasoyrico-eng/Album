@@ -1,4 +1,5 @@
 import type { Architecture } from "@/types";
+import { ARCHITECTURES_EXTENDED } from "./architecture-extended";
 
 /**
  * Seed catalogue of architectural works. Architecture is emotion as
@@ -6,7 +7,7 @@ import type { Architecture } from "@/types";
  * privileges spaces designed for particular emotional registers (silence,
  * grief, awe) over canonical aesthetic monuments.
  */
-export const ARCHITECTURES: Architecture[] = [
+const ARCHITECTURES_CURATED: Architecture[] = [
   {
     id: "zumthor-bruder-klaus",
     title: "Bruder Klaus Field Chapel",
@@ -137,4 +138,5 @@ export const ARCHITECTURES: Architecture[] = [
   },
 ];
 
+export const ARCHITECTURES: Architecture[] = [...ARCHITECTURES_CURATED, ...ARCHITECTURES_EXTENDED];
 export const ARCHITECTURE_MAP = new Map(ARCHITECTURES.map((a) => [a.id, a]));

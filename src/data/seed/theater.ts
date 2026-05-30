@@ -1,4 +1,5 @@
 import type { Theater } from "@/types";
+import { THEATERS_EXTENDED } from "./theater-extended";
 
 /**
  * Seed catalogue of theatre works. Theatre is the discipline that has
@@ -8,7 +9,7 @@ import type { Theater } from "@/types";
  * post-war absurdism, German political theatre, Latin-American liberation
  * theatre and contemporary documentary work.
  */
-export const THEATERS: Theater[] = [
+const THEATERS_CURATED: Theater[] = [
   {
     id: "sophocles-antigone",
     title: "Antígona",
@@ -181,4 +182,5 @@ export const THEATERS: Theater[] = [
   },
 ];
 
+export const THEATERS: Theater[] = [...THEATERS_CURATED, ...THEATERS_EXTENDED];
 export const THEATER_MAP = new Map(THEATERS.map((t) => [t.id, t]));

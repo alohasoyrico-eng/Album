@@ -79,6 +79,7 @@ import {
   queryResonance,
   type ResonanceHit,
   type ResonanceMode,
+  type EntityKind,
 } from "@/lib/resonance-engine";
 import { buildVector } from "@/lib/resonance-vector";
 import { COLORS } from "@/data/colors/colorResonance";
@@ -319,13 +320,45 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
   }
   const relatedFilms = [...curatedFront.slice(0, 3), ...engineFill].slice(0, 6);
   const relatedPoems = pickFromMap<Poem>(emotion.poetryResonance, POEM_MAP);
-  const relatedSculptures = pickFromMap<Sculpture>(emotion.sculptureResonance, SCULPTURE_MAP);
-  const relatedDances = pickFromMap<Dance>(emotion.danceResonance, DANCE_MAP);
-  const relatedArchitectures = pickFromMap<Architecture>(emotion.architectureResonance, ARCHITECTURE_MAP);
-  const relatedPhotographs = pickFromMap<Photography>(emotion.photographyResonance, PHOTOGRAPHY_MAP);
-  const relatedLiterature = pickFromMap<Literature>(emotion.literatureResonance, LITERATURE_MAP);
-  const relatedRituals = pickFromMap<Ritual>(emotion.ritualResonance, RITUAL_MAP);
-  const relatedTheater = pickFromMap<Theater>(emotion.theaterResonance, THEATER_MAP);
+  // Same recommendation strategy as films / music. Marina's curated
+  // picks anchor the lineup; the engine fills the rest from the
+  // catalogue. Each discipline gets a small helper so the per-call
+  // boilerplate stays in one place.
+  type AnyMap<T> = Map<string, T>;
+  const pickWithEngine = <T extends { id: string }>(
+    map: AnyMap<T>,
+    kind: EntityKind,
+    curatedIds: string[],
+    limit = 6,
+  ): T[] => {
+    const curated = curatedIds.map((id) => map.get(id)).filter((v): v is T => Boolean(v));
+    const seen = new Set<string>(curated.map((v) => v.id));
+    seen.add(emotion.id);
+    const hits = resonateFrom(emotion.resonance, {
+      kinds: [kind],
+      limit: limit + curated.length + 4,
+      mode: "expected",
+      excludeIds: [emotion.id],
+    });
+    const fill: T[] = [];
+    for (const h of hits) {
+      if (seen.has(h.entity.id)) continue;
+      const v = map.get(h.entity.id);
+      if (!v) continue;
+      fill.push(v);
+      seen.add(v.id);
+      if (curated.length + fill.length >= limit) break;
+    }
+    return [...curated.slice(0, Math.min(3, curated.length)), ...fill].slice(0, limit);
+  };
+
+  const relatedSculptures = pickWithEngine<Sculpture>(SCULPTURE_MAP, "sculpture" as EntityKind, emotion.sculptureResonance ?? []);
+  const relatedDances = pickWithEngine<Dance>(DANCE_MAP, "dance", emotion.danceResonance ?? []);
+  const relatedArchitectures = pickWithEngine<Architecture>(ARCHITECTURE_MAP, "architecture", emotion.architectureResonance ?? []);
+  const relatedPhotographs = pickWithEngine<Photography>(PHOTOGRAPHY_MAP, "photography", emotion.photographyResonance ?? []);
+  const relatedLiterature = pickWithEngine<Literature>(LITERATURE_MAP, "literature", emotion.literatureResonance ?? []);
+  const relatedRituals = pickWithEngine<Ritual>(RITUAL_MAP, "ritual", emotion.ritualResonance ?? []);
+  const relatedTheater = pickWithEngine<Theater>(THEATER_MAP, "theater", emotion.theaterResonance ?? []);
 
   // Relational neighbors — trimmed to the fields the JSX actually
   // touches so we don't ship full emotion objects we won't render.

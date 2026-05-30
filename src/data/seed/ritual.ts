@@ -1,4 +1,5 @@
 import type { Ritual } from "@/types";
+import { RITUALS_EXTENDED } from "./ritual-extended";
 
 /**
  * Seed catalogue of rituals — performative traditions with explicit emotional
@@ -6,7 +7,7 @@ import type { Ritual } from "@/types";
  * they are catalogued as emotional carriers in their own right, alongside
  * painting and music. Cross-cultural breadth is essential.
  */
-export const RITUALS: Ritual[] = [
+const RITUALS_CURATED: Ritual[] = [
   {
     id: "bon-odori",
     title: "Bon Odori — Festival of the Returning Dead",
@@ -129,4 +130,5 @@ export const RITUALS: Ritual[] = [
   },
 ];
 
+export const RITUALS: Ritual[] = [...RITUALS_CURATED, ...RITUALS_EXTENDED];
 export const RITUAL_MAP = new Map(RITUALS.map((r) => [r.id, r]));

@@ -1,4 +1,5 @@
 import type { Dance } from "@/types";
+import { DANCES_EXTENDED } from "./dance-extended";
 
 /**
  * Seed catalogue of dance works. Dance is emotion taking shape in time —
@@ -6,7 +7,7 @@ import type { Dance } from "@/types";
  * describes. The catalogue mixes Western modern dance, Japanese butoh,
  * Indian classical, flamenco, and ballet.
  */
-export const DANCES: Dance[] = [
+const DANCES_CURATED: Dance[] = [
   {
     id: "bausch-cafe",
     title: "Café Müller",
@@ -129,4 +130,5 @@ export const DANCES: Dance[] = [
   },
 ];
 
+export const DANCES: Dance[] = [...DANCES_CURATED, ...DANCES_EXTENDED];
 export const DANCE_MAP = new Map(DANCES.map((d) => [d.id, d]));
