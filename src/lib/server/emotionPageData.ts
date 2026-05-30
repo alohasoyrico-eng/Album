@@ -267,7 +267,35 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
   const relatedFonts = pickFromMap<TypographyResonance>(emotion.typographyResonance, FONT_MAP);
   const relatedArtworks = pickFromMap<Artwork>(emotion.artworkResonance, ARTWORK_MAP);
   const relatedTracks = pickFromMap<Track>(emotion.musicResonance, TRACK_MAP);
-  const relatedFilms = pickFromMap<Film>(emotion.filmResonance, FILM_MAP);
+  // Films were the worst case of catalogue starvation: with only 16
+  // curated entries for 72 emotions, each film ended up shared by 5-6
+  // emotions and "2001: A Space Odyssey" appeared on nearly every page.
+  // We now compute the top-6 films per emotion via the resonance engine
+  // over the full catalogue (~84 entries after the diversity expansion
+  // in films-extended.ts). The static `emotion.filmResonance` array is
+  // honoured as a curatorial bias: any film Marina explicitly pinned
+  // for this emotion gets pulled to the front, and the engine fills
+  // the rest. Result: each emotion gets a unique-feeling lineup that
+  // still respects Marina's verified pairings.
+  const enginePicks = resonateFrom(emotion.resonance, {
+    kinds: ["film"],
+    limit: 10,
+    mode: "expected",
+    excludeIds: [emotion.id],
+  });
+  const seen = new Set<string>();
+  const curatedFront = pickFromMap<Film>(emotion.filmResonance, FILM_MAP);
+  for (const c of curatedFront) seen.add(c.id);
+  const engineFill: Film[] = [];
+  for (const hit of enginePicks) {
+    if (seen.has(hit.entity.id)) continue;
+    const f = FILM_MAP.get(hit.entity.id);
+    if (!f) continue;
+    engineFill.push(f);
+    seen.add(f.id);
+    if (curatedFront.length + engineFill.length >= 6) break;
+  }
+  const relatedFilms = [...curatedFront.slice(0, 3), ...engineFill].slice(0, 6);
   const relatedPoems = pickFromMap<Poem>(emotion.poetryResonance, POEM_MAP);
   const relatedSculptures = pickFromMap<Sculpture>(emotion.sculptureResonance, SCULPTURE_MAP);
   const relatedDances = pickFromMap<Dance>(emotion.danceResonance, DANCE_MAP);

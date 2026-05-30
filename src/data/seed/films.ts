@@ -1,6 +1,9 @@
 import type { Film } from "@/types";
+import { FILMS_EXTENDED } from "./films-extended";
 
-export const FILMS: Film[] = [
+// Original curated list — the 16 "verified" pairings Marina hand-picked.
+// Kept first so they take precedence on equal-similarity ties.
+const FILMS_CURATED: Film[] = [
   {
     id: "eternal-sunshine",
     title: "Eternal Sunshine of the Spotless Mind",
@@ -274,5 +277,10 @@ export const FILMS: Film[] = [
     youtubeId: "5j-uvB4uVlw",
   },
 ];
+
+// Full catalogue: curated 16 + ~68 diversity expansion across regions,
+// genres, decades, and animation. See films-extended.ts for the
+// rationale and notes per category.
+export const FILMS: Film[] = [...FILMS_CURATED, ...FILMS_EXTENDED];
 
 export const FILM_MAP = new Map(FILMS.map((f) => [f.id, f]));
