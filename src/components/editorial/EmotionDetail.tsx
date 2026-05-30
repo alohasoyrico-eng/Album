@@ -1,44 +1,43 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { Emotion, Tribe } from "@/types";
-import { COLORS, COLOR_MAP } from "@/data/colors/colorResonance";
-import { FONT_MAP } from "@/data/typography/fonts";
-import { ARTWORK_MAP } from "@/data/seed/artworks";
-import { TRACK_MAP } from "@/data/seed/music";
-import { FILM_MAP } from "@/data/seed/films";
-import { POEM_MAP } from "@/data/seed/poetry";
-import { EMOTION_MAP } from "@/data/ontology/emotions";
-import { CLAN_MAP } from "@/data/ontology/clans";
 import { trackEvent } from "@/lib/analytics";
 import { useCollectionsStore } from "@/lib/store";
 import { ResonanceProfile } from "./ResonanceProfile";
-import { ParticipationModule } from "./ParticipationModule";
 import { YouTubeEmbed } from "@/components/ui/YouTubeEmbed";
 import { ChromaticBreakdown } from "./ChromaticBreakdown";
-import { emotionRecipe } from "@/lib/chromatics";
-import { deriveBehavior, behaviorCssVars } from "@/lib/behavior";
 import { EmotionalAtmosphere } from "./EmotionalAtmosphere";
-import { resonateFrom } from "@/lib/resonance-engine";
-import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
-import { deriveTexture } from "@/lib/emotionTexture";
-import { inkVars, blendHex } from "@/lib/contrast";
-import { emotionMotion, motionCssVars } from "@/lib/emotionMotion";
-import { PluralReadings } from "./PluralReadings";
 import { resolveEmotion } from "@/data/ontology/emotions-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
 import { hydrateClaims, subscribeToEntity, useClaimsVersion } from "@/lib/participation";
-import { EmergentResonance } from "./EmergentResonance";
-import { PathwayDrift } from "./PathwayDrift";
-import { SCULPTURE_MAP } from "@/data/seed/sculpture";
-import { DANCE_MAP } from "@/data/seed/dance";
-import { ARCHITECTURE_MAP } from "@/data/seed/architecture";
-import { PHOTOGRAPHY_MAP } from "@/data/seed/photography";
-import { LITERATURE_MAP } from "@/data/seed/literature";
-import { RITUAL_MAP } from "@/data/seed/ritual";
-import { THEATER_MAP } from "@/data/seed/theater";
+import type { EmotionPageData } from "@/lib/server/emotionPageData";
+
+// ─── Lazy-loaded below-the-fold sections ───────────────────────────────
+// These components each pull in heavy dependencies (resonance-engine
+// imports all 11 cultural catalogues; ParticipationModule imports COLORS
+// + TYPOGRAPHY + EMOTIONS). They appear well below the first paint, so
+// next/dynamic splits them into their own chunks that load after the
+// initial bundle is parsed. ssr:true (default) keeps them in the static
+// HTML — only the JS payload is deferred.
+const PluralReadings = dynamic(
+  () => import("./PluralReadings").then((m) => m.PluralReadings),
+  { ssr: true },
+);
+const EmergentResonance = dynamic(
+  () => import("./EmergentResonance").then((m) => m.EmergentResonance),
+  { ssr: true },
+);
+const PathwayDrift = dynamic(
+  () => import("./PathwayDrift").then((m) => m.PathwayDrift),
+  { ssr: true },
+);
+const ParticipationModule = dynamic(
+  () => import("./ParticipationModule").then((m) => m.ParticipationModule),
+  { ssr: true },
+);
 
 // Reveal animations are DISABLED (perf). Every motion.div in this file
 // references `reveal`, but the variants now resolve to instant identity
@@ -51,11 +50,49 @@ const fadeIn = {
 };
 
 interface Props {
-  emotion: Emotion;
-  tribe: Tribe;
+  pageData: EmotionPageData;
 }
 
-export function EmotionDetail({ emotion, tribe }: Props) {
+export function EmotionDetail({ pageData }: Props) {
+  // Destructure server-pre-computed payload. The data assembly lives in
+  // src/lib/server/emotionPageData.ts and runs at build time per emotion.
+  // Catalog imports, derivation libraries, and the resonance engine all
+  // stay on the server — none of them are bundled into this client chunk.
+  const {
+    emotion,
+    tribe,
+    clan,
+    recipe,
+    behavior,
+    behaviorVars,
+    typeSet,
+    typeVars,
+    texture,
+    inkOverrides,
+    motionPattern,
+    motionVars,
+    titleFontFamily,
+    isNervous,
+    relatedColors,
+    relatedFonts,
+    emergentPalette,
+    relatedArtworks,
+    relatedTracks,
+    relatedFilms,
+    relatedPoems,
+    relatedSculptures,
+    relatedDances,
+    relatedArchitectures,
+    relatedPhotographs,
+    relatedLiterature,
+    relatedRituals,
+    relatedTheater,
+    relatedEmotions,
+    transitions,
+  } = pageData;
+
+  const titleFont = typeSet.display;
+  const tribeColor = tribe.color;
   const { saveEmotion } = useCollectionsStore();
 
   useEffect(() => {
@@ -70,31 +107,24 @@ export function EmotionDetail({ emotion, tribe }: Props) {
   const claimsVersion = useClaimsVersion();
   useEffect(() => {
     let cancelled = false;
-    hydrateClaims("emotion", emotion.id).then((n) => {
+    void hydrateClaims("emotion", emotion.id).then((n) => {
       if (cancelled) return;
-      if (n > 0) {
-        // hydrateClaims already notifies via its push path, but force a
-        // version bump in case the bridge changed between paint frames.
-        void n;
-      }
+      void n;
     });
     const unsub = subscribeToEntity("emotion", emotion.id);
     return () => { cancelled = true; unsub(); };
   }, [emotion.id]);
 
-  const clan = CLAN_MAP.get(emotion.clan);
-
-  // ─── Context-aware reads through the active lens ──────────────────────
-  // The visitor's pinned lens (LensSwitcher in the nav, or the local
-  // picker inside PluralReadings) routes through here. When the consensus
-  // resolver picks a different reading, description / poeticIntro /
-  // etymology flip live without a navigation.
+  // ─── Context-aware text reads (lens-driven) ───────────────────────────
+  // Only the *textual* readings (description, poeticIntro, etymology, name)
+  // flip when the visitor pins a lens. The visual derivations — recipe,
+  // typeSet, texture, motion — are computed server-side per emotion and
+  // do NOT re-derive on lens change in this slice. A future lazy-loaded
+  // "lens engine" chunk can opt back into live visual shifts for the few
+  // pages whose claims actually move the resonance vector.
   const readCtx = useReadContext();
   const resolvedEmotion = useMemo(
     () => resolveEmotion(emotion.id, { lens: readCtx.lens }),
-    // claimsVersion bumps whenever new remote claims merge into the
-    // adapter; including it forces re-resolve without React thinking
-    // the value handle changed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [emotion.id, readCtx.lens, claimsVersion],
   );
@@ -102,129 +132,6 @@ export function EmotionDetail({ emotion, tribe }: Props) {
   const livePoeticIntro = resolvedEmotion?.poeticIntro ?? emotion.poeticIntro;
   const liveEtymology   = resolvedEmotion?.etymology   ?? emotion.etymology;
 
-  const relatedColors = emotion.colorResonance
-    .map((id) => COLOR_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedFonts = emotion.typographyResonance
-    .map((id) => FONT_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedArtworks = emotion.artworkResonance
-    .map((id) => ARTWORK_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedTracks = emotion.musicResonance
-    .map((id) => TRACK_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedFilms = emotion.filmResonance
-    .map((id) => FILM_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedPoems = emotion.poetryResonance
-    .map((id) => POEM_MAP.get(id))
-    .filter(Boolean);
-
-  // Extended disciplines (sculpture, dance, architecture, photography, literature, ritual)
-  const relatedSculptures = (emotion.sculptureResonance ?? [])
-    .map((id) => SCULPTURE_MAP.get(id))
-    .filter(Boolean);
-  const relatedDances = (emotion.danceResonance ?? [])
-    .map((id) => DANCE_MAP.get(id))
-    .filter(Boolean);
-  const relatedArchitectures = (emotion.architectureResonance ?? [])
-    .map((id) => ARCHITECTURE_MAP.get(id))
-    .filter(Boolean);
-  const relatedPhotographs = (emotion.photographyResonance ?? [])
-    .map((id) => PHOTOGRAPHY_MAP.get(id))
-    .filter(Boolean);
-  const relatedLiterature = (emotion.literatureResonance ?? [])
-    .map((id) => LITERATURE_MAP.get(id))
-    .filter(Boolean);
-  const relatedRituals = (emotion.ritualResonance ?? [])
-    .map((id) => RITUAL_MAP.get(id))
-    .filter(Boolean);
-  const relatedTheater = (emotion.theaterResonance ?? [])
-    .map((id) => THEATER_MAP.get(id))
-    .filter(Boolean);
-
-  const relatedEmotions = [
-    ...emotion.neighbors.map((id) => ({ id, rel: "neighbor" as const })),
-    ...emotion.antonyms.map((id) => ({ id, rel: "antonym" as const })),
-  ].map(({ id, rel }) => ({ emotion: EMOTION_MAP.get(id), rel })).filter((x) => x.emotion);
-
-  const tribeColor = tribe.color;
-
-  // ─── Emotional behavior — the page performs the emotion ──────────────────
-  // The recipe gives us the unique chromatic signature; behavior derives the
-  // page's pacing, jitter, breath rhythm, glow, and spacing from the same
-  // resonance axes that built the color. The page becomes the emotion.
-  // ─── Live, lens-aware resonance for the visual engines ─────────────────
-  // When a lens is active and the emotion has lens-shifted claims, the
-  // recipe / typeset / motion all recompute against the live vector.
-  // No lens → same canonical look as before. Lens active → page wears
-  // the perspective.
-  // The lens key + claimsVersion are the only things that can flip live
-  // readings. Memoising the context object lets every downstream useMemo()
-  // use stable deps. claimsVersion bumps when remote claims merge in,
-  // forcing recipe/typeset/motion/texture to re-derive.
-  const liveCtx = useMemo(
-    () => ({ lens: readCtx.lens, userId: readCtx.userId }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [readCtx.lens, readCtx.userId, claimsVersion],
-  );
-  const liveResValue = resolvedEmotion?.resonance ?? emotion.resonance;
-
-  // Each of these derivations does real work: Oklab mixing + catalogue
-  // snap (recipe), 4-role font ranking (typeset), SVG-noise URL encoding
-  // (texture), WCAG ink picker (inkOverrides), assignment lookup (motion).
-  // Without memoisation they fired on every parent render — for instance
-  // each scroll-into-view, each window resize, each unrelated state tick.
-  const recipe = useMemo(
-    () => emotionRecipe(emotion, tribeColor, liveCtx),
-    [emotion, tribeColor, liveCtx],
-  );
-  const behavior = useMemo(() => deriveBehavior(liveResValue), [liveResValue]);
-  const behaviorVars = useMemo(() => behaviorCssVars(behavior), [behavior]);
-  const isNervous = useMemo(
-    () => emotion.resonance.tension / 100 * 0.6 + (100 - emotion.resonance.control) / 100 * 0.4 > 0.65,
-    [emotion.resonance.tension, emotion.resonance.control],
-  );
-
-  const typeSet = useMemo(
-    () => deriveTypeSet(liveResValue, emotion.id, liveCtx),
-    [liveResValue, emotion.id, liveCtx],
-  );
-  const typeVars = useMemo(() => typeSetToCssVars(typeSet), [typeSet]);
-  const titleFont = typeSet.display;
-  const titleFontFamily = titleFont?.googleFontFamily ?? "Cormorant Garamond";
-
-  const emergentPalette = useMemo(
-    () => resonateFrom(emotion.resonance, { kinds: ["color"], limit: 16, mode: "expected" })
-      .map((h) => COLOR_MAP.get(h.entity.id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c)),
-    [emotion.resonance],
-  );
-
-  const texture = useMemo(
-    () => deriveTexture(liveResValue, emergentPalette),
-    [liveResValue, emergentPalette],
-  );
-
-  const inkOverrides = useMemo(() => {
-    const effectiveBg = blendHex(texture.baseColor, texture.surfaceTint, 0.35);
-    return inkVars(effectiveBg);
-  }, [texture]);
-
-  const motionPattern = useMemo(
-    () => emotionMotion(emotion.id, liveCtx),
-    [emotion.id, liveCtx],
-  );
-  const motionVars = useMemo(
-    () => motionPattern ? motionCssVars(motionPattern) : {},
-    [motionPattern],
-  );
   const reveal = fadeIn;
 
   return (
@@ -430,7 +337,7 @@ export function EmotionDetail({ emotion, tribe }: Props) {
         {/* Chromatic breakdown — how this emotion's color is built */}
         <motion.div variants={reveal} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-15% 0px" }} custom={6.5} className="mb-16">
           <ChromaticBreakdown
-            recipe={emotionRecipe(emotion, tribeColor)}
+            recipe={recipe}
             tribeName={tribe.name}
             emotionName={emotion.name}
           />
@@ -485,53 +392,49 @@ export function EmotionDetail({ emotion, tribe }: Props) {
         )}
 
         {/* Transitions */}
-        {emotion.transitions.length > 0 && (
+        {transitions.length > 0 && (
           <motion.div variants={reveal} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-15% 0px" }} custom={7} className="mb-16">
             <h2 className="text-xs text-ink-faint mb-6" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em" }}>
               TRÁNSITOS EMOCIONALES
             </h2>
             <div className="grid gap-3">
-              {emotion.transitions.map((t, i) => {
-                const target = EMOTION_MAP.get(t.to);
-                const targetTribe = target ? TRIBE_MAP_INLINE[target.tribe] : null;
-                return (
-                  <Link key={i} href={`/emotion/${t.to}`} className="group">
-                    <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 hover:border-white/10 transition-all duration-300 hover:bg-white/2">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-1.5 h-8 rounded-full"
-                          style={{ backgroundColor: targetTribe?.color ?? tribeColor, opacity: 0.5 }}
-                        />
-                        <div>
-                          <span className="text-sm text-ink/80 group-hover:text-ink transition-colors" style={{ fontFamily: "var(--font-editorial)" }}>
-                            {target?.name ?? t.to}
-                          </span>
-                          <p className="text-xs text-ink-faint" style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}>
-                            {t.description}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span
-                          className="text-xs px-2 py-0.5 rounded"
-                          style={{
-                            color: TRANSITION_COLORS[t.direction],
-                            backgroundColor: `${TRANSITION_COLORS[t.direction]}12`,
-                            fontFamily: "var(--font-technical)",
-                            fontSize: "0.6rem",
-                            letterSpacing: "0.08em",
-                          }}
-                        >
-                          {TRANSITION_LABELS[t.direction]}
+              {transitions.map((t, i) => (
+                <Link key={i} href={`/emotion/${t.to}`} className="group">
+                  <div className="flex items-center justify-between p-3 rounded-xl border border-white/5 hover:border-white/10 transition-all duration-300 hover:bg-white/2">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-1.5 h-8 rounded-full"
+                        style={{ backgroundColor: t.toTribeColor, opacity: 0.5 }}
+                      />
+                      <div>
+                        <span className="text-sm text-ink/80 group-hover:text-ink transition-colors" style={{ fontFamily: "var(--font-editorial)" }}>
+                          {t.toName}
                         </span>
-                        <p className="text-xs text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", fontSize: "0.6rem" }}>
-                          {Math.round(t.strength * 100)}% fuerza
+                        <p className="text-xs text-ink-faint" style={{ fontFamily: "var(--font-body)", fontWeight: 300 }}>
+                          {t.description}
                         </p>
                       </div>
                     </div>
-                  </Link>
-                );
-              })}
+                    <div className="text-right">
+                      <span
+                        className="text-xs px-2 py-0.5 rounded"
+                        style={{
+                          color: TRANSITION_COLORS[t.direction],
+                          backgroundColor: `${TRANSITION_COLORS[t.direction]}12`,
+                          fontFamily: "var(--font-technical)",
+                          fontSize: "0.6rem",
+                          letterSpacing: "0.08em",
+                        }}
+                      >
+                        {TRANSITION_LABELS[t.direction]}
+                      </span>
+                      <p className="text-xs text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", fontSize: "0.6rem" }}>
+                        {Math.round(t.strength * 100)}% fuerza
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
             </div>
           </motion.div>
         )}
@@ -1037,25 +940,25 @@ export function EmotionDetail({ emotion, tribe }: Props) {
               CONSTELACIÓN PRÓXIMA
             </h2>
             <div className="flex flex-wrap gap-2">
-              {relatedEmotions.map(({ emotion: rel, rel: relType }) => rel && (
+              {relatedEmotions.map((rel) => (
                 <Link
-                  key={rel.id}
+                  key={`${rel.rel}-${rel.id}`}
                   href={`/emotion/${rel.id}`}
                   className="group px-3 py-2 rounded-full border transition-all duration-300 hover:scale-105"
                   style={{
-                    borderColor: relType === "antonym"
+                    borderColor: rel.rel === "antonym"
                       ? `${tribeColor}30`
-                      : `${TRIBE_MAP_INLINE[rel.tribe]?.color ?? "#888"}30`,
-                    color: relType === "antonym"
+                      : `${rel.tribeColor}30`,
+                    color: rel.rel === "antonym"
                       ? `${tribeColor}70`
-                      : (TRIBE_MAP_INLINE[rel.tribe]?.color ?? "#888"),
-                    backgroundColor: relType === "antonym"
+                      : rel.tribeColor,
+                    backgroundColor: rel.rel === "antonym"
                       ? "transparent"
-                      : `${TRIBE_MAP_INLINE[rel.tribe]?.color ?? "#888"}10`,
+                      : `${rel.tribeColor}10`,
                   }}
                 >
                   <span className="text-xs" style={{ fontFamily: "var(--font-technical)" }}>
-                    {relType === "antonym" && <span className="opacity-50 mr-1">↔</span>}
+                    {rel.rel === "antonym" && <span className="opacity-50 mr-1">↔</span>}
                     {rel.name}
                   </span>
                 </Link>
@@ -1097,11 +1000,6 @@ export function EmotionDetail({ emotion, tribe }: Props) {
     </div>
   );
 }
-
-// ─── Inline tribe map for client components ────────────────────────────────
-
-import { TRIBES } from "@/data/ontology/tribes";
-const TRIBE_MAP_INLINE = Object.fromEntries(TRIBES.map((t) => [t.id, t]));
 
 const TRANSITION_COLORS: Record<string, string> = {
   intensification: "#C04040",
