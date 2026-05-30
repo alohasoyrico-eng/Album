@@ -111,7 +111,7 @@ export function PluralReadings({ emotionId, accent }: Props) {
         <div>
           <p
             className="text-xs mb-2"
-            style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.18em", color: accent }}
+            style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.18em", color: "var(--album-ink-faint)" }}
           >
             LECTURAS PLURALES
           </p>
@@ -339,7 +339,7 @@ function SubmitReadingForm({
     >
       <p
         className="text-[0.7rem] mb-3"
-        style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em", color: accent }}
+        style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.15em", color: "var(--album-ink-faint)" }}
       >
         TU LECTURA
       </p>

@@ -172,7 +172,7 @@ export function EmergentResonance({
                   style={{
                     fontFamily: "var(--font-technical)",
                     letterSpacing: "0.15em",
-                    color: active ? accentColor : "var(--album-ink-faint)",
+                    color: active ? "var(--album-ink)" : "var(--album-ink-faint)",
                     borderColor: active ? accentColor : "var(--album-border)",
                     backgroundColor: active ? `${accentColor}12` : "transparent",
                     border: "1px solid",

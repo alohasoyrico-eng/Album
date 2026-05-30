@@ -8,6 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
 import { HellerRanking } from "./HellerRanking";
 import { CulturalImage } from "@/components/ui/CulturalImage";
+import { Chip } from "@/components/ui/Chip";
 import { resolveColor } from "@/data/colors/colors-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
 import type { ColorPageData } from "@/lib/server/colorPageData";
@@ -76,7 +77,7 @@ export function ColorView({ pageData }: ColorViewProps) {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
         {/* ─── Header ──────────────────────────────────────────────────── */}
         <motion.div variants={fadeIn} initial="hidden" animate="visible" custom={0} className="mb-16">
           <p
@@ -125,7 +126,7 @@ export function ColorView({ pageData }: ColorViewProps) {
           </div>
 
           <p
-            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-2xl"
+            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
           >
             {liveDescription}
@@ -257,7 +258,7 @@ export function ColorView({ pageData }: ColorViewProps) {
               EMOCIONES PRIMARIAS
             </h2>
             <p
-              className="text-sm text-ink-muted/70 italic mb-5 max-w-xl"
+              className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
             >
               Las emociones que este color encarna con mayor coincidencia colectiva.
@@ -272,8 +273,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                     className="group flex items-center gap-4 p-4 rounded-xl border transition-all duration-300"
                     style={{
                       borderColor: `${color.hex}20`,
-                      backgroundColor: `${color.hex}06`,
-                    }}
+                                          }}
                   >
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0 transition-all duration-300 group-hover:scale-125"
@@ -400,7 +400,7 @@ export function ColorView({ pageData }: ColorViewProps) {
               ARTE RESONANTE
             </h2>
             <p
-              className="text-sm text-ink-muted/70 italic mb-5 max-w-xl"
+              className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
             >
               Obras donde este color juega un papel estructural en la atmósfera.
@@ -412,8 +412,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                   className="flex gap-4 p-4 rounded-xl border transition-all duration-300 hover:bg-white/[0.015]"
                   style={{
                     borderColor: `${color.hex}25`,
-                    backgroundColor: `${color.hex}06`,
-                  }}
+                                      }}
                 >
                   {art.imageUrl && (
                     <CulturalImage
@@ -475,7 +474,7 @@ export function ColorView({ pageData }: ColorViewProps) {
               TIPOGRAFÍAS RESONANTES
             </h2>
             <p
-              className="text-sm text-ink-muted/70 italic mb-5 max-w-xl"
+              className="text-sm text-ink-muted/80 italic mb-5 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
             >
               Tipografías que comparten emociones primarias con este color.
@@ -487,8 +486,7 @@ export function ColorView({ pageData }: ColorViewProps) {
                   className="p-5 rounded-xl border transition-all duration-300"
                   style={{
                     borderColor: `${color.hex}20`,
-                    backgroundColor: `${color.hex}05`,
-                  }}
+                                      }}
                 >
                   <p
                     className="text-3xl text-ink/95 leading-none mb-2"

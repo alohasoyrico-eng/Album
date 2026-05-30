@@ -373,9 +373,9 @@ function CandidateCard({
         <span
           className="text-[0.5rem] px-1.5 py-0.5 rounded-full"
           style={{
-            color: accentColor,
-            borderColor: `${accentColor}40`,
-            backgroundColor: `${accentColor}10`,
+            color: "var(--album-ink)",
+            borderColor: `${accentColor}66`,
+            backgroundColor: `${accentColor}14`,
             border: "1px solid",
             fontFamily: "var(--font-technical)",
             letterSpacing: "0.15em",

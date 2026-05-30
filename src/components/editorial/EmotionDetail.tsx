@@ -646,7 +646,7 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid md:grid-cols-2 gap-4">
               {relatedSculptures.map((s) => s && (
                 <div key={s.id} className="rounded-xl border p-4 transition-all duration-300 hover:bg-white/[0.015]"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="flex gap-3 mb-2">
                     <CulturalImage src={s.imageUrl} alt={s.title} kind="sculpture" accentColor={recipe.finalHex} width={64} height={80} className="w-16 h-20 object-cover rounded-lg opacity-80 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -676,14 +676,14 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid gap-4">
               {relatedDances.map((d) => d && (
                 <div key={d.id} className="rounded-xl border p-5 transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <p className="text-base text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{d.title}</p>
                       <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
                         {d.choreographer.toUpperCase()} · {d.year}
                       </p>
-                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: tribeColor, letterSpacing: "0.1em" }}>
+                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: "var(--album-ink-faint)", letterSpacing: "0.08em" }}>
                         {d.tradition.toUpperCase()}
                       </p>
                     </div>
@@ -708,7 +708,7 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid md:grid-cols-2 gap-4">
               {relatedArchitectures.map((a) => a && (
                 <div key={a.id} className="rounded-xl border overflow-hidden transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="relative w-full h-40">
                     <CulturalImage src={a.imageUrl} alt={a.title} kind="architecture" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-80" />
                   </div>
@@ -738,7 +738,7 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid md:grid-cols-2 gap-4">
               {relatedPhotographs.map((p) => p && (
                 <div key={p.id} className="rounded-xl border overflow-hidden transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="relative w-full h-48">
                     <CulturalImage src={p.imageUrl} alt={p.title} kind="photography" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-85" />
                   </div>
@@ -748,7 +748,7 @@ export function EmotionDetail({ pageData }: Props) {
                       {p.photographer.toUpperCase()} · {p.year}
                     </p>
                     {p.series && (
-                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: tribeColor, letterSpacing: "0.08em" }}>
+                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: "var(--album-ink-faint)", letterSpacing: "0.08em" }}>
                         SERIE · {p.series.toUpperCase()}
                       </p>
                     )}
@@ -770,14 +770,14 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid gap-4">
               {relatedLiterature.map((l) => l && (
                 <div key={l.id} className="rounded-xl border p-5 transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <p className="text-base text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{l.title}</p>
                       <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
                         {l.author.toUpperCase()} · {l.year}
                       </p>
-                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: tribeColor, letterSpacing: "0.08em" }}>
+                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: "var(--album-ink-faint)", letterSpacing: "0.08em" }}>
                         {l.form.toUpperCase()} · {l.language.toUpperCase()}
                       </p>
                     </div>
@@ -806,14 +806,14 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid gap-4">
               {relatedTheater.map((t) => t && (
                 <div key={t.id} className="em-card rounded-xl border p-5 transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
                     <div className="flex-1 min-w-0">
                       <p className="text-base text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{t.title}</p>
                       <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
                         {t.author.toUpperCase()} · {t.year}
                       </p>
-                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: tribeColor, letterSpacing: "0.08em" }}>
+                      <p className="text-[0.6rem] mt-0.5" style={{ fontFamily: "var(--font-technical)", color: "var(--album-ink-faint)", letterSpacing: "0.08em" }}>
                         {t.form.toUpperCase()} · {t.origin.toUpperCase()}
                       </p>
                     </div>
@@ -842,7 +842,7 @@ export function EmotionDetail({ pageData }: Props) {
             <div className="grid md:grid-cols-2 gap-4">
               {relatedRituals.map((r) => r && (
                 <div key={r.id} className="rounded-xl border overflow-hidden transition-all duration-300"
-                  style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
+                  style={{ borderColor: "var(--album-border)", backgroundColor: "rgba(255,255,255,0.015)" }}>
                   {r.imageUrl && (
                     <div className="relative w-full h-40">
                       <CulturalImage src={r.imageUrl} alt={r.title} kind="ritual" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-80" />

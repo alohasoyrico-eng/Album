@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import type { Clan, Tribe, Emotion } from "@/types";
 import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
+import { Chip } from "@/components/ui/Chip";
 import { resolveClan } from "@/data/ontology/clans-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
 import type { ClanPageData } from "@/lib/server/clanPageData";
@@ -82,7 +83,7 @@ export function ClanView({ pageData }: ClanViewProps) {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
         {/* ─── Breadcrumb + Tribe chip ─────────────────────────────────── */}
         <motion.div variants={fadeIn} initial="hidden" animate="visible" custom={0} className="mb-8">
           <div className="flex items-center gap-3 mb-4 flex-wrap">
@@ -102,7 +103,7 @@ export function ClanView({ pageData }: ClanViewProps) {
                 className="text-xs"
                 style={{
                   fontFamily: "var(--font-technical)",
-                  color: tribe.color,
+                  color: "var(--album-ink)",
                   letterSpacing: "0.1em",
                 }}
               >
@@ -141,7 +142,7 @@ export function ClanView({ pageData }: ClanViewProps) {
             </p>
           )}
           <p
-            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-2xl"
+            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
           >
             {liveDescription}
@@ -186,7 +187,7 @@ export function ClanView({ pageData }: ClanViewProps) {
             SENTIMIENTOS
           </h2>
           <p
-            className="text-sm text-ink-muted/70 italic mb-6 max-w-xl"
+            className="text-sm text-ink-muted/80 italic mb-6 max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
           >
             La capa léxica del clan — las palabras del español que comparten esta atmósfera.
@@ -195,8 +196,7 @@ export function ClanView({ pageData }: ClanViewProps) {
             className="rounded-2xl border p-7"
             style={{
               borderColor: `${tribe.color}25`,
-              backgroundColor: `${tribe.color}06`,
-            }}
+                          }}
           >
             <div className="flex flex-wrap gap-x-3 gap-y-2.5">
               {liveFeelings.map((f, i) => (
@@ -237,7 +237,7 @@ export function ClanView({ pageData }: ClanViewProps) {
             ANTÓNIMOS
           </h2>
           <p
-            className="text-sm text-ink-muted/70 italic mb-6 max-w-xl"
+            className="text-sm text-ink-muted/80 italic mb-6 max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
           >
             Las direcciones opuestas — adonde este clan no quiere ir.
@@ -275,7 +275,7 @@ export function ClanView({ pageData }: ClanViewProps) {
               EMOCIÓN CANÓNICA
             </h2>
             <p
-              className="text-sm text-ink-muted/70 italic mb-6 max-w-xl"
+              className="text-sm text-ink-muted/80 italic mb-6 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
             >
               La emoción del catálogo editorial que representa este clan en su forma más desarrollada.
@@ -318,7 +318,7 @@ export function ClanView({ pageData }: ClanViewProps) {
               <p
                 className="text-xs mt-5 transition-colors duration-200 group-hover:opacity-80"
                 style={{
-                  color: tribe.color,
+                  color: "var(--album-ink)",
                   fontFamily: "var(--font-technical)",
                   letterSpacing: "0.08em",
                 }}
@@ -354,8 +354,7 @@ export function ClanView({ pageData }: ClanViewProps) {
                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300"
                     style={{
                       borderColor: `${tribe.color}30`,
-                      backgroundColor: `${tribe.color}08`,
-                    }}
+                                          }}
                   >
                     <div
                       className="w-1.5 h-1.5 rounded-full transition-all duration-300 group-hover:scale-150"
@@ -424,7 +423,7 @@ export function ClanView({ pageData }: ClanViewProps) {
               CLANES HERMANOS · {tribe.name.toUpperCase()}
             </h2>
             <p
-              className="text-sm text-ink-muted/70 italic mb-6 max-w-xl"
+              className="text-sm text-ink-muted/80 italic mb-6 max-w-prose"
               style={{ fontFamily: "var(--font-literary)" }}
             >
               Otros clanes de la misma tribu — variaciones de la misma experiencia fundamental.

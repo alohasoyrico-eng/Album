@@ -234,7 +234,7 @@ export function ParticipationModule({ emotion, tribe, options }: Props) {
                       className="ml-2 px-1.5 py-0.5 rounded"
                       style={{
                         backgroundColor: `${tribe.color}18`,
-                        color: tribe.color,
+                        color: "var(--album-ink)",
                         fontSize: "0.6rem",
                       }}
                     >

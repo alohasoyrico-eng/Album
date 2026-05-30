@@ -8,6 +8,7 @@ import { TRIBES } from "@/data/ontology/tribes";
 import { trackEvent } from "@/lib/analytics";
 import { resolveTribe } from "@/data/ontology/tribes-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import { Chip } from "@/components/ui/Chip";
 import type { TribePageData } from "@/lib/server/tribePageData";
 
 const EmergentResonance = dynamic(
@@ -93,7 +94,7 @@ export function TribeView({ pageData }: TribeViewProps) {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+      <div className="relative z-10 max-w-6xl mx-auto px-6 py-12">
         {/* ─── Header ──────────────────────────────────────────────────── */}
         <motion.div variants={fadeIn} initial="hidden" animate="visible" custom={0} className="mb-16">
           <div className="flex items-center gap-3 mb-4">
@@ -132,7 +133,7 @@ export function TribeView({ pageData }: TribeViewProps) {
             </p>
           )}
           <p
-            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-2xl"
+            className="text-lg text-ink-muted/85 italic leading-relaxed max-w-prose"
             style={{ fontFamily: "var(--font-literary)" }}
           >
             {liveDescription}
@@ -176,26 +177,20 @@ export function TribeView({ pageData }: TribeViewProps) {
             </h2>
             <div className="flex flex-wrap gap-2">
               {emotions.map((emo) => (
-                <Link
+                <Chip
                   key={emo.id}
                   href={`/emotion/${emo.id}`}
-                  className="group flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300"
-                  style={{
-                    borderColor: `${tribe.color}40`,
-                    backgroundColor: `${tribe.color}10`,
-                  }}
+                  variant="outline"
+                  accent={tribe.color}
+                  size="sm"
                 >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full transition-all duration-300 group-hover:scale-150"
-                    style={{ backgroundColor: tribe.color, boxShadow: `0 0 8px ${tribe.color}80` }}
-                  />
                   <span
-                    className="text-sm text-ink/85 transition-colors duration-300"
-                    style={{ fontFamily: "var(--font-editorial)" }}
-                  >
-                    {emo.name}
-                  </span>
-                </Link>
+                    aria-hidden
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: tribe.color }}
+                  />
+                  {emo.name}
+                </Chip>
               ))}
             </div>
           </motion.section>
@@ -223,11 +218,7 @@ export function TribeView({ pageData }: TribeViewProps) {
                 initial="hidden"
                 animate="visible"
                 custom={2 + i * 0.4}
-                className="rounded-2xl border p-6 transition-all duration-300 hover:bg-white/[0.015]"
-                style={{
-                  borderColor: `${tribe.color}25`,
-                  backgroundColor: `${tribe.color}06`,
-                }}
+                className="rounded-2xl border border-album p-6 transition-all duration-300 hover:bg-white/[0.015]"
               >
                 <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
                   <Link
@@ -255,11 +246,11 @@ export function TribeView({ pageData }: TribeViewProps) {
                   {clan.canonicalEmotion && (
                     <Link
                       href={`/emotion/${clan.canonicalEmotion}`}
-                      className="text-xs px-2.5 py-1 rounded-full border text-ink-faint hover:text-ink transition-colors duration-200"
+                      className="inline-flex items-center text-xs px-3 py-1.5 rounded-full border-[1.5px] text-ink hover:bg-white/[0.03] transition-colors duration-200 min-h-[36px]"
                       style={{
-                        borderColor: `${tribe.color}40`,
+                        borderColor: `${tribe.color}66`,
                         fontFamily: "var(--font-technical)",
-                        letterSpacing: "0.06em",
+                        letterSpacing: "0.08em",
                       }}
                     >
                       Ver {clan.canonicalEmotion} →
