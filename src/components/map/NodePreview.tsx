@@ -9,6 +9,7 @@ import { TRACK_MAP } from "@/data/seed/music";
 import { TRIBE_MAP } from "@/data/ontology/tribes";
 import { CLAN_MAP } from "@/data/ontology/clans";
 import type { MapNode } from "@/types";
+import { CulturalImage } from "@/components/ui/CulturalImage";
 import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
 
 interface Props {
@@ -276,9 +277,13 @@ export function NodePreview({ nodeId, nodes, onClose }: Props) {
         {artwork && (
           <>
             <div className="flex gap-4 mb-4">
-              <img
+              <CulturalImage
                 src={artwork.imageUrl}
                 alt={artwork.title}
+                kind="artwork"
+                accentColor="#888"
+                width={80}
+                height={96}
                 className="w-20 h-24 object-cover rounded-lg opacity-80 flex-shrink-0"
               />
               <div className="flex-1 min-w-0">

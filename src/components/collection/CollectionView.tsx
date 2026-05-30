@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useCollectionsStore } from "@/lib/store";
 import { EMOTION_MAP } from "@/data/ontology/emotions";
+import { CulturalImage } from "@/components/ui/CulturalImage";
 import { ARTWORK_MAP } from "@/data/seed/artworks";
 import { TRACK_MAP } from "@/data/seed/music";
 import { FILM_MAP } from "@/data/seed/films";
@@ -147,10 +148,14 @@ export function CollectionView() {
                     return (
                       <div key={id} className="rounded-xl overflow-hidden border border-white/5 group">
                         <div className="relative h-28 bg-surface overflow-hidden">
-                          <img
+                          <CulturalImage
                             src={artwork.imageUrl}
                             alt={artwork.title}
-                            className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity"
+                            kind="artwork"
+                            accentColor="#888"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                            className="object-cover opacity-60 group-hover:opacity-80 transition-opacity"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-deep/80 to-transparent" />
                           <div className="absolute bottom-0 left-0 right-0 p-2">

@@ -7,6 +7,7 @@ import { TRIBE_MAP } from "@/data/ontology/tribes";
 import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
 import { HellerRanking } from "./HellerRanking";
+import { CulturalImage } from "@/components/ui/CulturalImage";
 import { resolveColor } from "@/data/colors/colors-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
 import type { ColorPageData } from "@/lib/server/colorPageData";
@@ -415,9 +416,13 @@ export function ColorView({ pageData }: ColorViewProps) {
                   }}
                 >
                   {art.imageUrl && (
-                    <img
+                    <CulturalImage
                       src={art.imageUrl}
                       alt={art.title}
+                      kind="artwork"
+                      accentColor={color.hex}
+                      width={64}
+                      height={80}
                       className="w-16 h-20 object-cover rounded-lg opacity-80 flex-shrink-0"
                     />
                   )}

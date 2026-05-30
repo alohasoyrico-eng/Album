@@ -29,6 +29,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ResonanceProfile } from "./ResonanceProfile";
 import { YouTubeEmbed } from "@/components/ui/YouTubeEmbed";
+import { CulturalImage } from "@/components/ui/CulturalImage";
 import { ChromaticBreakdown } from "./ChromaticBreakdown";
 import { EmotionalAtmosphere } from "./EmotionalAtmosphere";
 import {
@@ -497,10 +498,14 @@ export function EmotionDetail({ pageData }: Props) {
                   }}
 >
                   <div className="relative h-48 overflow-hidden bg-surface">
-                    <img
+                    <CulturalImage
                       src={artwork.imageUrl}
                       alt={artwork.title}
-                      className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
+                      kind="artwork"
+                      accentColor={recipe.finalHex}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      className="object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-700"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-deep/90 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -587,9 +592,13 @@ export function EmotionDetail({ pageData }: Props) {
                 <div key={film.id} className="p-4 rounded-xl border border-white/5 hover:border-white/10 transition-all duration-300">
                   <div className="flex gap-3 mb-3">
                     {film.posterUrl && (
-                      <img
+                      <CulturalImage
                         src={film.posterUrl}
                         alt={film.title}
+                        kind="film"
+                        accentColor={recipe.finalHex}
+                        width={56}
+                        height={80}
                         className="w-14 h-20 object-cover rounded-lg opacity-70 flex-shrink-0"
                       />
                     )}
@@ -657,7 +666,7 @@ export function EmotionDetail({ pageData }: Props) {
                 <div key={s.id} className="rounded-xl border p-4 transition-all duration-300 hover:bg-white/[0.015]"
                   style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
                   <div className="flex gap-3 mb-2">
-                    <img src={s.imageUrl} alt={s.title} className="w-16 h-20 object-cover rounded-lg opacity-80 flex-shrink-0" />
+                    <CulturalImage src={s.imageUrl} alt={s.title} kind="sculpture" accentColor={recipe.finalHex} width={64} height={80} className="w-16 h-20 object-cover rounded-lg opacity-80 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{s.title}</p>
                       <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
@@ -718,7 +727,9 @@ export function EmotionDetail({ pageData }: Props) {
               {relatedArchitectures.map((a) => a && (
                 <div key={a.id} className="rounded-xl border overflow-hidden transition-all duration-300"
                   style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
-                  <img src={a.imageUrl} alt={a.title} className="w-full h-40 object-cover opacity-80" />
+                  <div className="relative w-full h-40">
+                    <CulturalImage src={a.imageUrl} alt={a.title} kind="architecture" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-80" />
+                  </div>
                   <div className="p-4">
                     <p className="text-sm text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{a.title}</p>
                     <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
@@ -746,7 +757,9 @@ export function EmotionDetail({ pageData }: Props) {
               {relatedPhotographs.map((p) => p && (
                 <div key={p.id} className="rounded-xl border overflow-hidden transition-all duration-300"
                   style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
-                  <img src={p.imageUrl} alt={p.title} className="w-full h-48 object-cover opacity-85" />
+                  <div className="relative w-full h-48">
+                    <CulturalImage src={p.imageUrl} alt={p.title} kind="photography" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-85" />
+                  </div>
                   <div className="p-4">
                     <p className="text-sm text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{p.title}</p>
                     <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
@@ -848,7 +861,11 @@ export function EmotionDetail({ pageData }: Props) {
               {relatedRituals.map((r) => r && (
                 <div key={r.id} className="rounded-xl border overflow-hidden transition-all duration-300"
                   style={{ borderColor: `${tribeColor}25`, backgroundColor: `${tribeColor}06` }}>
-                  {r.imageUrl && <img src={r.imageUrl} alt={r.title} className="w-full h-40 object-cover opacity-80" />}
+                  {r.imageUrl && (
+                    <div className="relative w-full h-40">
+                      <CulturalImage src={r.imageUrl} alt={r.title} kind="ritual" accentColor={recipe.finalHex} fill sizes="(max-width: 768px) 100vw, 50vw" className="object-cover opacity-80" />
+                    </div>
+                  )}
                   <div className="p-4">
                     <p className="text-sm text-ink/90" style={{ fontFamily: "var(--font-editorial)" }}>{r.title}</p>
                     <p className="text-[0.65rem] text-ink-faint mt-1" style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.08em" }}>
