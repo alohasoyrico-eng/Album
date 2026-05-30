@@ -1,26 +1,26 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { Tribe, Clan, Emotion } from "@/types";
 import { TRIBES } from "@/data/ontology/tribes";
 import { trackEvent } from "@/lib/analytics";
-import { groupCentroidResonance, resonateFrom } from "@/lib/resonance-engine";
-import { EmergentResonance } from "./EmergentResonance";
-import { PathwayDrift } from "./PathwayDrift";
-import { COLOR_MAP } from "@/data/colors/colorResonance";
-import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
-import { deriveTexture } from "@/lib/emotionTexture";
-import { inkVars, blendHex } from "@/lib/contrast";
-import { deriveMotion, motionCssVars } from "@/lib/emotionMotion";
 import { resolveTribe } from "@/data/ontology/tribes-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import type { TribePageData } from "@/lib/server/tribePageData";
+
+const EmergentResonance = dynamic(
+  () => import("./EmergentResonance").then((m) => m.EmergentResonance),
+  { ssr: true },
+);
+const PathwayDrift = dynamic(
+  () => import("./PathwayDrift").then((m) => m.PathwayDrift),
+  { ssr: true },
+);
 
 interface TribeViewProps {
-  tribe: Tribe;
-  clans: Clan[];
-  emotions: Emotion[];
+  pageData: TribePageData;
 }
 
 const fadeIn = {
@@ -42,7 +42,23 @@ function romanNumeral(tribeId: string): string {
   return idx >= 0 ? numerals[idx] : "";
 }
 
-export function TribeView({ tribe, clans, emotions }: TribeViewProps) {
+export function TribeView({ pageData }: TribeViewProps) {
+  const { tribe, clans, emotions, presentation } = pageData;
+  const {
+    typeSet,
+    typeVars,
+    titleFontFamily,
+    emergentPalette,
+    texture,
+    inkOverrides,
+    motionVars,
+    emergentHits,
+    pathwayInitialCandidates,
+  } = presentation;
+  const titleFont = typeSet.display;
+  const accent = emergentPalette[0]?.hex ?? tribe.color;
+  const tribeQueryName = `la tribu ${tribe.name}`;
+
   // ─── Lens-aware reads ─────────────────────────────────────────────────
   const readCtx = useReadContext();
   const resolvedTribe = resolveTribe(tribe.id, { lens: readCtx.lens });
@@ -51,30 +67,6 @@ export function TribeView({ tribe, clans, emotions }: TribeViewProps) {
   useEffect(() => {
     trackEvent("editorial_page_opened", { entry: "tribe", tribeId: tribe.id });
   }, [tribe.id]);
-
-  // ─── Vector centroid for the tribe ────────────────────────────────────
-  // Average resonance over all canonical emotions of this tribe. Used to
-  // query the catalogue for emergent cross-disciplinary neighbours.
-  const centroid = useMemo(() => groupCentroidResonance(emotions), [emotions]);
-  const tribeQueryName = `la tribu ${tribe.name}`;
-
-  // ─── Emergent type SET + palette + texture from tribe centroid ────────
-  const typeSet = useMemo(() => deriveTypeSet(centroid), [centroid]);
-  const typeVars = useMemo(() => typeSetToCssVars(typeSet), [typeSet]);
-  const titleFont = typeSet.display;
-  const titleFontFamily = titleFont?.googleFontFamily ?? "Cormorant Garamond";
-
-  const emergentPalette = useMemo(() => {
-    return resonateFrom(centroid, { kinds: ["color"], limit: 14, mode: "expected" })
-      .map((h) => COLOR_MAP.get(h.entity.id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  }, [centroid]);
-  const accent = emergentPalette[0]?.hex ?? tribe.color;
-  const texture = useMemo(() => deriveTexture(centroid, emergentPalette), [centroid, emergentPalette]);
-  const effectiveBg = useMemo(() => blendHex(texture.baseColor, texture.surfaceTint, 0.35), [texture]);
-  const inkOverrides = useMemo(() => inkVars(effectiveBg), [effectiveBg]);
-  const motionPattern = useMemo(() => deriveMotion(centroid), [centroid]);
-  const motionVars = useMemo(() => motionCssVars(motionPattern), [motionPattern]);
 
   // Prev/next tribe navigation (canonical order)
   const idx = TRIBES.findIndex((t) => t.id === tribe.id);
@@ -347,8 +339,7 @@ export function TribeView({ tribe, clans, emotions }: TribeViewProps) {
             custom={3.5}
           >
             <EmergentResonance
-              resonance={centroid}
-              excludeId={tribe.id}
+              hitsByMode={emergentHits}
               accentColor={tribe.color}
               title="RESONANCIA EMERGENTE · TRIBU"
             />
@@ -365,9 +356,9 @@ export function TribeView({ tribe, clans, emotions }: TribeViewProps) {
             custom={3.7}
           >
             <PathwayDrift
-              resonance={centroid}
               startId={tribe.id}
               startLabel={tribeQueryName}
+              initialCandidates={pathwayInitialCandidates}
               accentColor={tribe.color}
             />
           </motion.div>

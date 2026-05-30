@@ -1,29 +1,18 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { ColorResonance, Emotion, Artwork, TypographyResonance } from "@/types";
-import { COLORS, COLOR_MAP } from "@/data/colors/colorResonance";
 import { TRIBE_MAP } from "@/data/ontology/tribes";
 import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
 import { HellerRanking } from "./HellerRanking";
-import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
-import { deriveTexture } from "@/lib/emotionTexture";
-import { resonateFrom } from "@/lib/resonance-engine";
-import { inkVars, blendHex } from "@/lib/contrast";
-import { deriveMotion, motionCssVars } from "@/lib/emotionMotion";
 import { resolveColor } from "@/data/colors/colors-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import type { ColorPageData } from "@/lib/server/colorPageData";
 
 interface ColorViewProps {
-  color: ColorResonance;
-  primaryEmotions: Emotion[];
-  contradictoryEmotions: Emotion[];
-  resonantEmotions: Emotion[];
-  resonantArtworks: Artwork[];
-  resonantFonts: TypographyResonance[];
+  pageData: ColorPageData;
 }
 
 const fadeIn = {
@@ -35,14 +24,29 @@ const fadeIn = {
   }),
 };
 
-export function ColorView({
-  color,
-  primaryEmotions,
-  contradictoryEmotions,
-  resonantEmotions,
-  resonantArtworks,
-  resonantFonts,
-}: ColorViewProps) {
+export function ColorView({ pageData }: ColorViewProps) {
+  const {
+    color,
+    primaryEmotions,
+    contradictoryEmotions,
+    resonantEmotions,
+    resonantArtworks,
+    resonantFonts,
+    prev,
+    next,
+    presentation,
+  } = pageData;
+  const {
+    typeSet,
+    typeVars,
+    titleFontFamily,
+    emergentPalette,
+    texture,
+    inkOverrides,
+    motionVars,
+  } = presentation;
+  const titleFont = typeSet.display;
+
   useEffect(() => {
     trackEvent("editorial_page_opened", { entry: "color", colorId: color.id });
   }, [color.id]);
@@ -53,36 +57,6 @@ export function ColorView({
   const liveDescription = resolvedColor?.description ?? color.description;
   const liveHellerQuote = resolvedColor?.hellerQuote ?? color.hellerQuote;
   const liveNameEs = resolvedColor?.nameEs ?? color.nameEs;
-
-  // ─── Emergent typeset + texture from the colour's resonance ──────────
-  const typeSet = useMemo(() => deriveTypeSet(color.resonance), [color.resonance]);
-  const typeVars = useMemo(() => typeSetToCssVars(typeSet), [typeSet]);
-  const titleFont = typeSet.display;
-  const titleFontFamily = titleFont?.googleFontFamily ?? "Cormorant Garamond";
-
-  const emergentPalette = useMemo(
-    () => resonateFrom(color.resonance, { kinds: ["color"], limit: 12, mode: "expected" })
-      .map((h) => COLOR_MAP.get(h.entity.id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c) && c!.id !== color.id),
-    [color.resonance, color.id],
-  );
-
-  const texture = useMemo(
-    () => deriveTexture(color.resonance, emergentPalette),
-    [color.resonance, emergentPalette],
-  );
-  const effectiveBg = useMemo(() => blendHex(texture.baseColor, texture.surfaceTint, 0.35), [texture]);
-  const inkOverrides = useMemo(() => inkVars(effectiveBg), [effectiveBg]);
-  const motionPattern = useMemo(() => deriveMotion(color.resonance), [color.resonance]);
-  const motionVars = useMemo(() => motionCssVars(motionPattern), [motionPattern]);
-
-  // Find prev/next color in the appreciated rank order
-  const ordered = [...COLORS].sort(
-    (a, b) => (a.appreciatedRank ?? 99) - (b.appreciatedRank ?? 99),
-  );
-  const idx = ordered.findIndex((c) => c.id === color.id);
-  const prev = idx > 0 ? ordered[idx - 1] : null;
-  const next = idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
   return (
     <div

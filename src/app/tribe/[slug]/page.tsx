@@ -1,13 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { TRIBES, TRIBE_MAP } from "@/data/ontology/tribes";
-import { CLANS_BY_TRIBE } from "@/data/ontology/clans";
-import { EMOTIONS } from "@/data/ontology/emotions";
 import { TribeView } from "@/components/editorial/TribeView";
 import type { TribeId } from "@/types";
-import { groupCentroidResonance } from "@/lib/resonance-engine";
-import { deriveTypeSet } from "@/lib/typeset";
 import { buildTypeSetUrl } from "@/lib/fontStylesheet";
+import { getTribePageData } from "@/lib/server/tribePageData";
 
 interface Params { slug: string }
 
@@ -27,22 +24,17 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
 export default async function TribePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const tribe = TRIBE_MAP.get(slug as TribeId);
-  if (!tribe) notFound();
+  const pageData = getTribePageData(slug);
+  if (!pageData) notFound();
 
-  const clans = CLANS_BY_TRIBE[tribe.id] ?? [];
-  const tribeEmotions = EMOTIONS.filter((e) => e.tribe === tribe.id);
-
-  const fontUrl = tribeEmotions.length > 0
-    ? buildTypeSetUrl(deriveTypeSet(groupCentroidResonance(tribeEmotions)))
-    : null;
+  const fontUrl = buildTypeSetUrl(pageData.presentation.typeSet);
 
   return (
     <>
       {fontUrl && (
         <link rel="stylesheet" href={fontUrl} precedence="emergent-fonts" />
       )}
-      <TribeView tribe={tribe} clans={clans} emotions={tribeEmotions} />
+      <TribeView pageData={pageData} />
     </>
   );
 }

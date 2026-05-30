@@ -1,30 +1,29 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Clan, Tribe, Emotion } from "@/types";
 import { trackEvent } from "@/lib/analytics";
 import { ResonanceProfile } from "./ResonanceProfile";
-import { groupCentroidResonance, resonateFrom } from "@/lib/resonance-engine";
-import { EmergentResonance } from "./EmergentResonance";
-import { PathwayDrift } from "./PathwayDrift";
-import { COLOR_MAP } from "@/data/colors/colorResonance";
-import { deriveTypeSet, typeSetToCssVars } from "@/lib/typeset";
-import { deriveTexture } from "@/lib/emotionTexture";
-import { inkVars, blendHex } from "@/lib/contrast";
-import { deriveMotion, emotionMotion, motionCssVars } from "@/lib/emotionMotion";
 import { resolveClan } from "@/data/ontology/clans-claims";
 import { useReadContext } from "@/lib/ReadContextProvider";
+import type { ClanPageData } from "@/lib/server/clanPageData";
+
+// Same lazy split as EmotionDetail — these chunks no longer pull the
+// engine since they receive pre-computed data via props.
+const EmergentResonance = dynamic(
+  () => import("./EmergentResonance").then((m) => m.EmergentResonance),
+  { ssr: true },
+);
+const PathwayDrift = dynamic(
+  () => import("./PathwayDrift").then((m) => m.PathwayDrift),
+  { ssr: true },
+);
 
 interface ClanViewProps {
-  clan: Clan;
-  tribe: Tribe;
-  canonical: Emotion | null;
-  clanEmotions: Emotion[];     // all curated emotions in this clan
-  siblings: Clan[];            // all clans in the same tribe
-  prev: Clan | null;
-  next: Clan | null;
+  pageData: ClanPageData;
 }
 
 const fadeIn = {
@@ -36,7 +35,24 @@ const fadeIn = {
   }),
 };
 
-export function ClanView({ clan, tribe, canonical, clanEmotions, siblings, prev, next }: ClanViewProps) {
+export function ClanView({ pageData }: ClanViewProps) {
+  const { clan, tribe, canonical, clanEmotions, siblings, prev, next, presentation } = pageData;
+  const {
+    typeSet,
+    typeVars,
+    titleFontFamily,
+    emergentPalette,
+    texture,
+    inkOverrides,
+    motionPattern,
+    motionVars,
+    emergentHits,
+    pathwayInitialCandidates,
+  } = presentation;
+  const titleFont = typeSet.display;
+  const accent = emergentPalette[0]?.hex ?? tribe.color;
+  const hasResonance = clanEmotions.length > 0 || canonical != null;
+
   useEffect(() => {
     trackEvent("editorial_page_opened", { entry: "clan", clanId: clan.id });
   }, [clan.id]);
@@ -48,41 +64,6 @@ export function ClanView({ clan, tribe, canonical, clanEmotions, siblings, prev,
   const liveName = resolvedClan?.name ?? clan.name;
   const liveFeelings = resolvedClan?.feelings ?? clan.feelings;
   const liveAntonyms = resolvedClan?.antonyms ?? clan.antonyms;
-
-  // Clan centroid: average of all curated emotions in this clan (or canonical
-  // alone if it's the only one). The emergent engine queries the catalogue
-  // against this shape.
-  const centroid = useMemo(() => {
-    if (clanEmotions.length > 0) return groupCentroidResonance(clanEmotions);
-    if (canonical) return canonical.resonance;
-    return groupCentroidResonance([]);
-  }, [clanEmotions, canonical]);
-
-  const hasResonance = clanEmotions.length > 0 || canonical != null;
-
-  // ─── Emergent type SET (4 fonts) + palette + texture from centroid ────
-  const typeSet = useMemo(() => deriveTypeSet(centroid), [centroid]);
-  const typeVars = useMemo(() => typeSetToCssVars(typeSet), [typeSet]);
-  const titleFont = typeSet.display;
-  const titleFontFamily = titleFont?.googleFontFamily ?? "Cormorant Garamond";
-
-  const emergentPalette = useMemo(() => {
-    return resonateFrom(centroid, { kinds: ["color"], limit: 12, mode: "expected" })
-      .map((h) => COLOR_MAP.get(h.entity.id))
-      .filter((c): c is NonNullable<typeof c> => Boolean(c));
-  }, [centroid]);
-  const accent = emergentPalette[0]?.hex ?? tribe.color;
-  const texture = useMemo(() => deriveTexture(centroid, emergentPalette), [centroid, emergentPalette]);
-  const effectiveBg = useMemo(() => blendHex(texture.baseColor, texture.surfaceTint, 0.35), [texture]);
-  const inkOverrides = useMemo(() => inkVars(effectiveBg), [effectiveBg]);
-
-  // Motion pattern: prefer the canonical emotion's assignment so the clan
-  // page moves like its anchor; fall back to the centroid match.
-  const motionPattern = useMemo(
-    () => (canonical ? emotionMotion(canonical.id) ?? deriveMotion(centroid) : deriveMotion(centroid)),
-    [canonical, centroid],
-  );
-  const motionVars = useMemo(() => motionCssVars(motionPattern), [motionPattern]);
 
   return (
     <div
@@ -402,8 +383,7 @@ export function ClanView({ clan, tribe, canonical, clanEmotions, siblings, prev,
             custom={5.5}
           >
             <EmergentResonance
-              resonance={centroid}
-              excludeId={clan.id}
+              hitsByMode={emergentHits}
               accentColor={tribe.color}
               title="RESONANCIA EMERGENTE · CLAN"
             />
@@ -420,9 +400,9 @@ export function ClanView({ clan, tribe, canonical, clanEmotions, siblings, prev,
             custom={5.7}
           >
             <PathwayDrift
-              resonance={centroid}
               startId={clan.id}
               startLabel={`el clan ${clan.name}`}
+              initialCandidates={pathwayInitialCandidates}
               accentColor={tribe.color}
             />
           </motion.div>
