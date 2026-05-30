@@ -279,6 +279,11 @@ export interface Track {
   id: string;
   title: string;
   artist: string;
+  // Cover-art / portrait image for the track or its album. Optional —
+  // the Wikipedia ingest fills this for the diversity-expansion entries;
+  // older curated tracks may not have one and rely on the iconographic
+  // fallback in CulturalImage.
+  imageUrl?: string;
   album?: string;
   year?: number;
   genre: string[];
@@ -371,6 +376,7 @@ export interface Dance extends BaseDiscipline {
   year: string;            // year of creation (some are traditional → e.g. "trad.")
   tradition: string;       // "Modern", "Butoh", "Flamenco", "Kathakali"…
   culture: string;
+  imageUrl?: string;       // representative still; iconographic fallback otherwise
   youtubeId?: string;      // a representative recording
   videoUrl?: string;
 }
@@ -382,7 +388,10 @@ export interface Architecture extends BaseDiscipline {
   year: string;
   location: string;
   buildingType: string;    // "chapel", "memorial", "house", "library"…
-  imageUrl: string;
+  // Optional now — the diversity expansion adds entries without a
+  // reliable photo (Fathy's Gurna, Borobudur from the side, etc.) and
+  // CulturalImage renders a fallback when missing.
+  imageUrl?: string;
   sourceUrl?: string;
 }
 
@@ -416,6 +425,7 @@ export interface Theater extends BaseDiscipline {
   language: string;
   origin: string;          // "Athenian", "Elizabethan", "German", "Argentinian"…
   excerpt?: string;
+  imageUrl?: string;       // production photo / author portrait; fallback otherwise
   videoUrl?: string;       // optional staged recording reference
 }
 

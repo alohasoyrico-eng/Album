@@ -36,6 +36,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Latin American (16) ────────────────────────────────────────
   {
     id: "lara-noche-de-ronda",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/4/44/Agust%C3%ADn_Lara%2C_circa_1950s.jpg",
     title: "Noche de Ronda",
     artist: "Agustín Lara",
     album: "Granada y otras canciones",
@@ -51,6 +52,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "piazzolla-libertango",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4b/Astor_Piazzolla_-_Libertango.jpg",
     title: "Libertango",
     artist: "Astor Piazzolla",
     album: "Libertango",
@@ -66,6 +68,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "gardel-cuesta-abajo",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Carlos_gardel_en_su_casa_1933.jpg/330px-Carlos_gardel_en_su_casa_1933.jpg",
     title: "Cuesta Abajo",
     artist: "Carlos Gardel",
     year: 1934,
@@ -80,6 +83,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "jobim-aguas-marco",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Ant%C3%B4nio_Carlos_Jobim_%28cropped%29.jpg/330px-Ant%C3%B4nio_Carlos_Jobim_%28cropped%29.jpg",
     title: "Águas de Março",
     artist: "Antônio Carlos Jobim & Elis Regina",
     year: 1972,
@@ -94,6 +98,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "veloso-coracao-vagabundo",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d8/David_Byrne_and_Caetano_Veloso_-_Live_at_Carnegie_Hall.jpg/330px-David_Byrne_and_Caetano_Veloso_-_Live_at_Carnegie_Hall.jpg",
     title: "Coração Vagabundo",
     artist: "Caetano Veloso",
     year: 1967,
@@ -108,6 +113,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "buarque-construcao",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/d/d2/Constru%C3%A7%C3%A3o_album_cover.png",
     title: "Construção",
     artist: "Chico Buarque",
     year: 1971,
@@ -122,6 +128,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "lavoe-pirana",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/H%C3%A9ctor_Lavoe_%281969_Fania_Records_publicity_photo%29.jpg/330px-H%C3%A9ctor_Lavoe_%281969_Fania_Records_publicity_photo%29.jpg",
     title: "El Cantante",
     artist: "Héctor Lavoe",
     year: 1978,
@@ -136,6 +143,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "blades-pedro-navaja",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Ruben_Blades_%2848403756251%29_%28cropped%29.jpg/330px-Ruben_Blades_%2848403756251%29_%28cropped%29.jpg",
     title: "Pedro Navaja",
     artist: "Rubén Blades",
     year: 1978,
@@ -150,6 +158,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "buena-vista-chan-chan",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4a/Buenavistasocialclubalbumcover.jpeg",
     title: "Chan Chan",
     artist: "Buena Vista Social Club",
     year: 1997,
@@ -164,6 +173,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "sosa-gracias-vida",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Mercedes_Sosa%2C_by_Annemarie_Heinrich.jpg/330px-Mercedes_Sosa%2C_by_Annemarie_Heinrich.jpg",
     title: "Gracias a la Vida",
     artist: "Mercedes Sosa",
     year: 1971,
@@ -178,6 +188,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "parra-volver-17",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/d/da/Parra01f.PNG",
     title: "Volver a los 17",
     artist: "Violeta Parra",
     year: 1962,
@@ -192,6 +203,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "tacuba-eres",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Cafe_Tacuba_1.jpg/330px-Cafe_Tacuba_1.jpg",
     title: "Eres",
     artist: "Café Tacvba",
     album: "Cuatro Caminos",
@@ -207,6 +219,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "residente-rios",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4d/Residente_2017.jpg",
     title: "Hijos del Cañaveral",
     artist: "Residente",
     year: 2017,
@@ -221,6 +234,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "bad-bunny-andrea",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/6/60/Bad_Bunny_-_Un_Verano_Sin_Ti.png",
     title: "Andrea",
     artist: "Bad Bunny",
     album: "Un Verano Sin Ti",
@@ -236,6 +250,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "atahualpa-malambo",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Festival_de_Cosqu%C3%ADn_1970_ca.jpg/330px-Festival_de_Cosqu%C3%ADn_1970_ca.jpg",
     title: "Malambo",
     artist: "Atahualpa Yupanqui",
     year: 1955,
@@ -250,6 +265,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "evora-sodade",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Ces%C3%A1ria_%C3%89vora_2008.jpg/330px-Ces%C3%A1ria_%C3%89vora_2008.jpg",
     title: "Sodade",
     artist: "Cesária Évora",
     year: 1992,
@@ -266,6 +282,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── African / Middle Eastern (10) ─────────────────────────────
   {
     id: "fela-zombie",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/f/f5/FelaZombie.jpg",
     title: "Zombie",
     artist: "Fela Kuti",
     year: 1976,
@@ -280,6 +297,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "ali-farka-savane",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Ali_Farka_Toure.jpg/330px-Ali_Farka_Toure.jpg",
     title: "Savane",
     artist: "Ali Farka Touré",
     year: 2006,
@@ -294,6 +312,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "tinariwen-amassakoul",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Tinariwen-Bardentreffen_2010.jpg/330px-Tinariwen-Bardentreffen_2010.jpg",
     title: "Amassakoul 'N' Tenere",
     artist: "Tinariwen",
     year: 2004,
@@ -308,6 +327,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "salif-soro",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Salif_Keita.JPG/330px-Salif_Keita.JPG",
     title: "Soro",
     artist: "Salif Keita",
     year: 1987,
@@ -322,6 +342,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "umm-kulthum-enta-omri",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/9/96/Umm_Kulthum_as_Fatimah.jpg",
     title: "Enta Omri",
     artist: "Umm Kulthum",
     year: 1964,
@@ -336,6 +357,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "fairuz-li-beirut",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Nai_Barghouti_%28born_1996%29_interviewed_by_Ahotsa_Info.png/330px-Nai_Barghouti_%28born_1996%29_interviewed_by_Ahotsa_Info.png",
     title: "Li Beirut",
     artist: "Fairuz",
     year: 1984,
@@ -350,6 +372,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "nusrat-allah-hoo",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Nusrat_Fateh_Ali_Khan_%281948-1997%29.jpg/330px-Nusrat_Fateh_Ali_Khan_%281948-1997%29.jpg",
     title: "Allah Hoo",
     artist: "Nusrat Fateh Ali Khan",
     year: 1990,
@@ -364,6 +387,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "ladysmith-shaka",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Ladysmith_Black_Mambazo_in_2018.jpg/330px-Ladysmith_Black_Mambazo_in_2018.jpg",
     title: "Homeless",
     artist: "Ladysmith Black Mambazo",
     year: 1986,
@@ -378,6 +402,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "mulatu-tezeta",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Mulatu_Astatke_Cosmopolite_2017_%28221840%29.jpg/330px-Mulatu_Astatke_Cosmopolite_2017_%28221840%29.jpg",
     title: "Tezeta",
     artist: "Mulatu Astatke",
     year: 1972,
@@ -392,6 +417,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "konono-paradiso",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/1/19/Konono_No.1-Congotronics-Album_Cover.jpg",
     title: "Lufuala Ndonga",
     artist: "Konono N°1",
     year: 2004,
@@ -408,6 +434,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Asian (10) ────────────────────────────────────────────────
   {
     id: "shankar-raga-jog",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/Ram_Narayan_at_the_Shiraz_Arts_Festival.ogv/330px--Ram_Narayan_at_the_Shiraz_Arts_Festival.ogv.jpg",
     title: "Raga Jog",
     artist: "Ravi Shankar",
     year: 1967,
@@ -422,6 +449,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "hisaishi-merry-go-round",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Joe_Hisaishi_2011.jpg/330px-Joe_Hisaishi_2011.jpg",
     title: "Merry-Go-Round of Life",
     artist: "Joe Hisaishi",
     album: "Howl's Moving Castle OST",
@@ -437,6 +465,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "sakamoto-merry-christmas",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/a/a9/Merry_Christmas_Mr_Lawrence_poster_Japanese.jpg",
     title: "Merry Christmas Mr. Lawrence",
     artist: "Ryuichi Sakamoto",
     year: 1983,
@@ -451,6 +480,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "takemitsu-rain-tree",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4c/TakemitsuToru.jpg",
     title: "Rain Tree Sketch II",
     artist: "Toru Takemitsu",
     year: 1992,
@@ -465,6 +495,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "gagaku-etenraku",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b6/Konoye_Hidemaro.jpg",
     title: "Etenraku",
     artist: "Gagaku Imperial Ensemble",
     year: 800,
@@ -479,6 +510,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "hozono-tonari",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/0/02/My_Neighbor_Totoro_-_Tonari_no_Totoro_%28Movie_Poster%29.jpg",
     title: "Tonari no Totoro",
     artist: "Joe Hisaishi & Azumi Inoue",
     year: 1988,
@@ -493,6 +525,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "ofra-haza-im-nin",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/7/7a/Im_nin%27_alu.jpg",
     title: "Im Nin'Alu",
     artist: "Ofra Haza",
     year: 1988,
@@ -507,6 +540,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "kim-ki-hwan-sea",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/%EB%B0%95%EA%B2%BD%EB%A6%BC_Park_Kyung-lim_161207.png/330px-%EB%B0%95%EA%B2%BD%EB%A6%BC_Park_Kyung-lim_161207.png",
     title: "바다 (Bada)",
     artist: "Park Kyung-so",
     year: 2018,
@@ -521,6 +555,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "lhasa-de-cara",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/1/1f/La_Llorona_cover.jpg",
     title: "De Cara a la Pared",
     artist: "Lhasa de Sela",
     year: 1997,
@@ -535,6 +570,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "alim-bekenov-altai",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Pachelbel%27s_Canon_-_Overtone_Singing.webm/330px--Pachelbel%27s_Canon_-_Overtone_Singing.webm.jpg",
     title: "Altai Kai",
     artist: "Altai Kai Throat Singers",
     year: 2005,
@@ -551,6 +587,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Hip-hop + Rap (8) ─────────────────────────────────────────
   {
     id: "kendrick-alright",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/6/61/Kendrick_Lamar_-_Not_Like_Us.png",
     title: "Alright",
     artist: "Kendrick Lamar",
     album: "To Pimp a Butterfly",
@@ -566,6 +603,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "kendrick-duckworth",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/KendrickSZASPurs230725-144_%28cropped%29_desaturated.jpg/330px-KendrickSZASPurs230725-144_%28cropped%29_desaturated.jpg",
     title: "Duckworth",
     artist: "Kendrick Lamar",
     album: "DAMN.",
@@ -581,6 +619,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "atcq-can-i-kick",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4e/Can_I_Kick.jpg",
     title: "Can I Kick It?",
     artist: "A Tribe Called Quest",
     year: 1991,
@@ -595,6 +634,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "outkast-bombs",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/f/f6/OutkastBombs_Over_Baghdad.jpg",
     title: "B.O.B.",
     artist: "Outkast",
     album: "Stankonia",
@@ -610,6 +650,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "mos-def-umi",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/0/0f/MosDefBlackonBothSides.jpg",
     title: "Umi Says",
     artist: "Mos Def",
     year: 1999,
@@ -624,6 +665,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "missy-get-ur",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/42/MissyElliottGetUrFreakOn.jpg",
     title: "Get Ur Freak On",
     artist: "Missy Elliott",
     album: "Miss E... So Addictive",
@@ -639,6 +681,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "babasonicos-deshoras",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/c/cf/A_proposito.PNG",
     title: "Deshoras",
     artist: "Babasónicos",
     year: 2001,
@@ -653,6 +696,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "soda-cancion-animal",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/2/2b/SodaStereo_CancionAnimal.jpg",
     title: "Canción Animal",
     artist: "Soda Stereo",
     year: 1990,
@@ -669,6 +713,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Electronic + Ambient (10) ─────────────────────────────────
   {
     id: "eno-airports",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/46/Music_for_Airports.jpg",
     title: "1/1 (Music for Airports)",
     artist: "Brian Eno",
     year: 1978,
@@ -683,6 +728,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "aphex-twin-avril",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/f/f0/Drukqs_%28Front_Cover%29.png",
     title: "Avril 14th",
     artist: "Aphex Twin",
     album: "Drukqs",
@@ -698,6 +744,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "boards-canada-roygbiv",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Boards_of_Canada_Warp_Lighthouse_Party_1999_%28cropped%29.jpg",
     title: "Roygbiv",
     artist: "Boards of Canada",
     album: "Music Has the Right to Children",
@@ -713,6 +760,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "burial-archangel",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Ghent_Altarpiece_-_Angel_of_the_Annunciation.jpg/330px-Ghent_Altarpiece_-_Angel_of_the_Annunciation.jpg",
     title: "Archangel",
     artist: "Burial",
     album: "Untrue",
@@ -728,6 +776,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "fennesz-endless",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/9/95/Fennesz_Endless_Summer_Cover_Art.jpg",
     title: "Endless Summer",
     artist: "Fennesz",
     year: 2001,
@@ -742,6 +791,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "tim-hecker-virgins",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Tim_Hecker_-_A-Visions_4_%284690826583%29.jpg/330px-Tim_Hecker_-_A-Visions_4_%284690826583%29.jpg",
     title: "Black Refraction",
     artist: "Tim Hecker",
     album: "Virgins",
@@ -757,6 +807,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "four-tet-mortar",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/3/3d/Four_Tet_-_There_Is_Love_in_You_%28CD%29.jpg",
     title: "Sing",
     artist: "Four Tet",
     album: "There Is Love in You",
@@ -772,6 +823,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "arca-nonbinary",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/a/ad/ArcaKickICover.jpg",
     title: "Nonbinary",
     artist: "Arca",
     album: "KiCk i",
@@ -787,6 +839,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "richter-on-the-nature",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d6/Max_Richter_at_the_2026_Berlin_International_Film_Festival-68476.jpg/330px-Max_Richter_at_the_2026_Berlin_International_Film_Festival-68476.jpg",
     title: "On the Nature of Daylight",
     artist: "Max Richter",
     album: "The Blue Notebooks",
@@ -802,6 +855,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "johann-flight-from-the-city",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/4/4b/Sicario_poster.jpg",
     title: "Flight From the City",
     artist: "Jóhann Jóhannsson",
     year: 2016,
@@ -818,6 +872,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Folk / Protest / Contemporary (7) ─────────────────────────
   {
     id: "shaw-partita",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Caroline_Shaw_with_Attacca_Quartet_and_So_Percussion_at_Miller_Theater_-_49517838252.jpg/330px-Caroline_Shaw_with_Attacca_Quartet_and_So_Percussion_at_Miller_Theater_-_49517838252.jpg",
     title: "Partita for 8 Voices: Allemande",
     artist: "Caroline Shaw / Roomful of Teeth",
     year: 2012,
@@ -832,6 +887,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "hildur-joker",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/b/b8/28_Years_Later%2C_The_Bone_Temple_poster.jpg",
     title: "Hildur Theme",
     artist: "Hildur Guðnadóttir",
     album: "Joker OST",
@@ -847,6 +903,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "saariaho-graal",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Jaufre_rudel.jpg/330px-Jaufre_rudel.jpg",
     title: "L'amour de loin: Lointain",
     artist: "Kaija Saariaho",
     year: 2000,
@@ -861,6 +918,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "okja-feeling",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/c/c9/Perfect_Days_poster.jpg",
     title: "Feeling Good",
     artist: "Nina Simone",
     year: 1965,
@@ -875,6 +933,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "seeger-where",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/5/52/Pete_Seeger_45_Hall_Of_Fame.jpg",
     title: "Where Have All the Flowers Gone?",
     artist: "Pete Seeger",
     year: 1955,
@@ -889,6 +948,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "anhoni-hope",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/2/24/Hope_There%27s_Someone.jpg",
     title: "Hope There's Someone",
     artist: "Antony and the Johnsons",
     year: 2005,
@@ -903,6 +963,7 @@ const _TRACKS_EXTENDED_RAW: Track[] = [
   },
   {
     id: "kate-bush-running",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/5/5a/Kate_Bush_-_Running_Up_That_Hill.png",
     title: "Running Up That Hill",
     artist: "Kate Bush",
     year: 1985,

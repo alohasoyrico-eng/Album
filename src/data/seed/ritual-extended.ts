@@ -8,6 +8,7 @@ import type { Ritual } from "@/types";
 const _RITUALS_EXTENDED_RAW: Ritual[] = [
   {
     id: "dia-muertos",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Monumento_a_la_Raza_12.jpg/330px-Monumento_a_la_Raza_12.jpg",
     title: "Día de Muertos",
     tradition: "Náhuatl-católica",
     culture: "Mexicana",
@@ -22,6 +23,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "shabbat",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/PER_orthographic.svg/330px-PER_orthographic.svg.png",
     title: "Shabbat",
     tradition: "Judía",
     culture: "Hebrea",
@@ -36,6 +38,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "salat",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Islam_percent_population_in_each_nation_World_Map_Muslim_data_by_Pew_Research.svg/330px-Islam_percent_population_in_each_nation_World_Map_Muslim_data_by_Pew_Research.svg.png",
     title: "Salāt",
     tradition: "Islámica",
     culture: "Musulmana",
@@ -50,6 +53,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "ofrenda-pachamama",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Bailarinas_de_tinku_2.jpg/330px-Bailarinas_de_tinku_2.jpg",
     title: "Ofrenda a la Pachamama",
     tradition: "Andina",
     culture: "Quechua-Aymara",
@@ -64,6 +68,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "iyaago-yoruba",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Yoruba_Oduduwa_People_Ethnic_Flag.svg/330px-Yoruba_Oduduwa_People_Ethnic_Flag.svg.png",
     title: "Ìyàwó Òrìṣà",
     tradition: "Yoruba / Candomblé",
     culture: "Afro-brasileña",
@@ -78,6 +83,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "matsuri-aoi",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fd/Aoi_Matsuri.jpg/330px-Aoi_Matsuri.jpg",
     title: "Aoi Matsuri",
     tradition: "Shinto",
     culture: "Japonesa",
@@ -92,6 +98,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "tea-chanoyu",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Chado.svg/330px-Chado.svg.png",
     title: "Chanoyu",
     tradition: "Zen-Shinto",
     culture: "Japonesa",
@@ -106,6 +113,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "powwow",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Grand_Entry_Omaha.jpg/330px-Grand_Entry_Omaha.jpg",
     title: "Powwow",
     tradition: "Plains Native",
     culture: "Nativa americana",
@@ -134,6 +142,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "sema-derviche",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Mainard-1890-Livre_d%27Or_des_voyages-Asie-23.jpg/330px-Mainard-1890-Livre_d%27Or_des_voyages-Asie-23.jpg",
     title: "Sema",
     tradition: "Sufí (Mevlevi)",
     culture: "Turca-persa",
@@ -148,6 +157,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "pesach-seder",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Siddur_Tefila.jpg/330px-Siddur_Tefila.jpg",
     title: "Seder de Pesach",
     tradition: "Judía",
     culture: "Hebrea",
@@ -176,6 +186,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "mass-eucaristía",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Pope_Leo_XIV_3_%283x4_cropped%29.png/330px-Pope_Leo_XIV_3_%283x4_cropped%29.png",
     title: "Eucaristía",
     tradition: "Católica",
     culture: "Global",
@@ -190,6 +201,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "kumbh-mela",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Third_Shahi_Snan_in_Hari_Ki_Pauri.jpg/330px-Third_Shahi_Snan_in_Hari_Ki_Pauri.jpg",
     title: "Kumbh Mela",
     tradition: "Hindú",
     culture: "India",
@@ -232,6 +244,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "sundance",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Fort_Hall_Reservation._Shoshone_Indian_Sun_Dance_-_NARA_-_298649.tif/lossy-page1-330px-Fort_Hall_Reservation._Shoshone_Indian_Sun_Dance_-_NARA_-_298649.tif.jpg",
     title: "Sun Dance",
     tradition: "Lakota",
     culture: "Nativa americana",
@@ -274,6 +287,7 @@ const _RITUALS_EXTENDED_RAW: Ritual[] = [
   },
   {
     id: "rosario-funebre",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Universidad_Cat%C3%B3lica_-_Rosario_Central_20190313_20.jpg/330px-Universidad_Cat%C3%B3lica_-_Rosario_Central_20190313_20.jpg",
     title: "Rosario",
     tradition: "Católica",
     culture: "Hispana / Latina",

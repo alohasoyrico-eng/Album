@@ -51,7 +51,10 @@ const KIND_GLYPH: Record<string, string> = {
 type Kind = keyof typeof KIND_GLYPH | string;
 
 interface CommonProps {
-  src: string;
+  // Accept undefined / empty so callers can pass through optional
+  // `imageUrl` fields directly. When src is falsy we render the
+  // FallbackTile straight away, skipping the failed next/image fetch.
+  src?: string;
   alt: string;
   /** Discipline name for the fallback icon. */
   kind?: Kind;
@@ -93,8 +96,13 @@ export function CulturalImage(props: Props) {
     sizes,
   } = props;
   const [failed, setFailed] = useState(false);
+  // Treat missing/empty src the same as a failed load — render the
+  // iconographic fallback directly. The diversity-expansion entries
+  // ship without imageUrl for many disciplines, so this short-circuit
+  // is the hot path for them.
+  const noSrc = !src;
 
-  if (failed) {
+  if (failed || noSrc) {
     // CRITICAL: when `fill` is set, the next/image element had
     // `position:absolute; inset:0` so it filled the parent (which had
     // `position:relative` + an explicit height). The fallback div
@@ -125,8 +133,10 @@ export function CulturalImage(props: Props) {
     );
   }
 
+  // After the `noSrc` early return src is guaranteed truthy; assert
+  // it for next/image's strict signature.
   const commonImgProps = {
-    src,
+    src: src as string,
     alt,
     className,
     style,

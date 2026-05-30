@@ -287,9 +287,9 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
     if (!t) continue;
     trackFill.push(t);
     seenT.add(t.id);
-    if (trackCurated.length + trackFill.length >= 6) break;
+    if (trackCurated.length + trackFill.length >= 4) break;
   }
-  const relatedTracks = [...trackCurated.slice(0, 3), ...trackFill].slice(0, 6);
+  const relatedTracks = [...trackCurated.slice(0, 3), ...trackFill].slice(0, 4);
   // Films were the worst case of catalogue starvation: with only 16
   // curated entries for 72 emotions, each film ended up shared by 5-6
   // emotions and "2001: A Space Odyssey" appeared on nearly every page.
@@ -316,20 +316,24 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
     if (!f) continue;
     engineFill.push(f);
     seen.add(f.id);
-    if (curatedFront.length + engineFill.length >= 6) break;
+    if (curatedFront.length + engineFill.length >= 4) break;
   }
-  const relatedFilms = [...curatedFront.slice(0, 3), ...engineFill].slice(0, 6);
+  const relatedFilms = [...curatedFront.slice(0, 3), ...engineFill].slice(0, 4);
   const relatedPoems = pickFromMap<Poem>(emotion.poetryResonance, POEM_MAP);
   // Same recommendation strategy as films / music. Marina's curated
   // picks anchor the lineup; the engine fills the rest from the
   // catalogue. Each discipline gets a small helper so the per-call
   // boilerplate stays in one place.
   type AnyMap<T> = Map<string, T>;
+  // 4 entries per discipline keeps the page focused without losing
+  // diversity. With 11 disciplines that's still 44 cards visible,
+  // plus the EmergentResonance section + transitions + related
+  // emotions. Going from 6 → 4 cuts the SSR'd HTML by ~30 %.
   const pickWithEngine = <T extends { id: string }>(
     map: AnyMap<T>,
     kind: EntityKind,
     curatedIds: string[],
-    limit = 6,
+    limit = 4,
   ): T[] => {
     const curated = curatedIds.map((id) => map.get(id)).filter((v): v is T => Boolean(v));
     const seen = new Set<string>(curated.map((v) => v.id));

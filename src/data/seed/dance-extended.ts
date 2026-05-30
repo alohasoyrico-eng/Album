@@ -8,6 +8,7 @@ import type { Dance } from "@/types";
 const _DANCES_EXTENDED_RAW: Dance[] = [
   {
     id: "flamenco-solea",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Bailando_Cumbia.jpg/330px-Bailando_Cumbia.jpg",
     title: "Soleá",
     choreographer: "Tradición",
     year: "trad.",
@@ -22,6 +23,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "tango-milonga",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Festival_mundial_de_Tango_en_Buenos_Aires%2C_Argentina.jpg/330px-Festival_mundial_de_Tango_en_Buenos_Aires%2C_Argentina.jpg",
     title: "Tango Milonguero",
     choreographer: "Tradición",
     year: "trad.",
@@ -36,6 +38,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "samba-no-pe",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/d/d2/Grammy-latino2005.jpg",
     title: "Samba no Pé",
     choreographer: "Tradición",
     year: "trad.",
@@ -50,6 +53,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "marinera-norteña",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Marinera_dance_with_Peruvian_Paso_horse.jpg/330px-Marinera_dance_with_Peruvian_Paso_horse.jpg",
     title: "Marinera Norteña",
     choreographer: "Tradición",
     year: "trad.",
@@ -78,6 +82,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "butoh-ankoku",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/1/16/Tatsumi_Hijikata.jpg",
     title: "Ankoku Butoh",
     choreographer: "Tatsumi Hijikata",
     year: "1959",
@@ -92,6 +97,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "ballet-bolero",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/5/59/Maurice_B%C3%A9jart_%281988%29_by_Erling_Mandelmann_-_2.jpg",
     title: "Bolero",
     choreographer: "Maurice Béjart",
     year: "1961",
@@ -106,6 +112,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "pina-cafe-muller",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Pina_Bausch_%28festival_d%27Avignon%2C_1981%29.jpg/330px-Pina_Bausch_%28festival_d%27Avignon%2C_1981%29.jpg",
     title: "Café Müller",
     choreographer: "Pina Bausch",
     year: "1978",
@@ -120,6 +127,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "pina-rite-spring",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Pina_Bausch_%28festival_d%27Avignon%2C_1981%29.jpg/330px-Pina_Bausch_%28festival_d%27Avignon%2C_1981%29.jpg",
     title: "Le Sacre du Printemps",
     choreographer: "Pina Bausch",
     year: "1975",
@@ -134,6 +142,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "akram-khan-vertical-road",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b3/Akram_Khan_%28cropped%29.jpg/330px-Akram_Khan_%28cropped%29.jpg",
     title: "Vertical Road",
     choreographer: "Akram Khan",
     year: "2010",
@@ -148,6 +157,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "trisha-set-and-reset",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/b/b2/Trisha_Brown.jpg",
     title: "Set and Reset",
     choreographer: "Trisha Brown",
     year: "1983",
@@ -162,6 +172,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "merce-fielders-choice",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Merce_Cunningham_1961.png/330px-Merce_Cunningham_1961.png",
     title: "RainForest",
     choreographer: "Merce Cunningham",
     year: "1968",
@@ -176,6 +187,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "alvin-ailey-revelations",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b7/Alvin_Ailey_-_Revelations.jpg/330px-Alvin_Ailey_-_Revelations.jpg",
     title: "Revelations",
     choreographer: "Alvin Ailey",
     year: "1960",
@@ -190,6 +202,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "rosas-de-keersmaeker",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Anne_Teresa_De_Keersmaeker_2016.jpg/330px-Anne_Teresa_De_Keersmaeker_2016.jpg",
     title: "Rosas Danst Rosas",
     choreographer: "Anne Teresa De Keersmaeker",
     year: "1983",
@@ -232,6 +245,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "danza-conchera",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Distribuci%C3%B3n_de_poblaci%C3%B3n_ind%C3%ADgena_en_M%C3%A9xico_2020.svg/330px-Distribuci%C3%B3n_de_poblaci%C3%B3n_ind%C3%ADgena_en_M%C3%A9xico_2020.svg.png",
     title: "Danza de los Concheros",
     choreographer: "Tradición Mexica",
     year: "trad.",
@@ -246,6 +260,7 @@ const _DANCES_EXTENDED_RAW: Dance[] = [
   },
   {
     id: "salsa-cubana",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Fabrica_havanna_mardelplata.jpg/330px-Fabrica_havanna_mardelplata.jpg",
     title: "Casino",
     choreographer: "Tradición",
     year: "trad.",

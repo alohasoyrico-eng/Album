@@ -12,6 +12,7 @@ import type { Theater } from "@/types";
 const _THEATERS_EXTENDED_RAW: Theater[] = [
   {
     id: "boal-oprimidos",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Augusto_Boal_nyc3cr.jpg/330px-Augusto_Boal_nyc3cr.jpg",
     title: "Teatro del Oprimido",
     author: "Augusto Boal",
     year: "1971",
@@ -27,6 +28,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "garcia-lorca-bernarda",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Federico_Garc%C3%ADa_Lorca._Huerta_de_San_Vicente%2C_Granada.jpg/330px-Federico_Garc%C3%ADa_Lorca._Huerta_de_San_Vicente%2C_Granada.jpg",
     title: "La Casa de Bernarda Alba",
     author: "Federico García Lorca",
     year: "1936",
@@ -42,6 +44,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "discepolo-stefano",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/ArmandoDiscepolo.JPG/330px-ArmandoDiscepolo.JPG",
     title: "Stéfano",
     author: "Armando Discépolo",
     year: "1928",
@@ -57,6 +60,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "santiago-arena",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Ant%C3%B4nio_Parreiras_-_Zumbi_2.jpg/330px-Ant%C3%B4nio_Parreiras_-_Zumbi_2.jpg",
     title: "Zumbi",
     author: "Augusto Boal & Gianfrancesco Guarnieri",
     year: "1965",
@@ -72,6 +76,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "noh-aoi-no-ue",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Scene_uit_het_Noh_theaterstuk_Aoinoue_Aoinoue_%28titel_op_object%29_Honderd_Noh_spelen_%28serietitel%29_Nogaku_hyakuban_%28serietitel_op_object%29%2C_RP-P-2003-279.jpg/330px-Scene_uit_het_Noh_theaterstuk_Aoinoue_Aoinoue_%28titel_op_object%29_Honderd_Noh_spelen_%28serietitel%29_Nogaku_hyakuban_%28serietitel_op_object%29%2C_RP-P-2003-279.jpg",
     title: "Aoi no Ue",
     author: "Zeami Motokiyo",
     year: "c. 1400",
@@ -102,6 +107,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "soyinka-death-kings",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Wole_Soyinka_in_2018_%283x4_cropped%29.jpg/330px-Wole_Soyinka_in_2018_%283x4_cropped%29.jpg",
     title: "Death and the King's Horseman",
     author: "Wole Soyinka",
     year: "1975",
@@ -117,6 +123,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "fugard-blood-knot",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/7/7a/Athol_Fugard.jpg",
     title: "The Blood Knot",
     author: "Athol Fugard",
     year: "1961",
@@ -132,6 +139,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "wilson-einstein",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Einstein_on_the_Beach_gallery_photograph.jpg/330px-Einstein_on_the_Beach_gallery_photograph.jpg",
     title: "Einstein on the Beach",
     author: "Robert Wilson & Philip Glass",
     year: "1976",
@@ -147,6 +155,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "veronese-mujeres",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Susi_S%C3%A1nchez_at_Berlinale_2022.jpg/330px-Susi_S%C3%A1nchez_at_Berlinale_2022.jpg",
     title: "Mujeres soñaron caballos",
     author: "Daniel Veronese",
     year: "2001",
@@ -162,6 +171,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "abramovic-rhythm-0",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Marina_Abramovi%C4%87_-_The_Artist_Is_Present_-_Viennale_2012.jpg/330px-Marina_Abramovi%C4%87_-_The_Artist_Is_Present_-_Viennale_2012.jpg",
     title: "Rhythm 0",
     author: "Marina Abramović",
     year: "1974",
@@ -177,6 +187,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "beckett-not-i",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Samuel_Beckett%2C_Pic%2C_1_%28cropped%29.jpg/330px-Samuel_Beckett%2C_Pic%2C_1_%28cropped%29.jpg",
     title: "Not I",
     author: "Samuel Beckett",
     year: "1972",
@@ -192,6 +203,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "muller-hamletmaschine",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Bundesarchiv_Bild_183-1989-1104-047%2C_Berlin%2C_Demonstration%2C_Rede_Heiner_M%C3%BCller.jpg/330px-Bundesarchiv_Bild_183-1989-1104-047%2C_Berlin%2C_Demonstration%2C_Rede_Heiner_M%C3%BCller.jpg",
     title: "Die Hamletmaschine",
     author: "Heiner Müller",
     year: "1977",
@@ -207,6 +219,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "fornes-fefu",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/6/6b/Mar%C3%ADa_Irene_Forn%C3%A9s_%282012%29.jpg",
     title: "Fefu and Her Friends",
     author: "María Irene Fornés",
     year: "1977",
@@ -222,6 +235,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "kane-blasted",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/3/38/Blasted.jpg",
     title: "Blasted",
     author: "Sarah Kane",
     year: "1995",
@@ -237,6 +251,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "stoppard-rosencrantz",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Tom_Stoppard_ROSENKRANTZ_I_GUILDENSTERN_SU_MRTVI_%28Hamlet%29%2C_2006..jpg/330px-Tom_Stoppard_ROSENKRANTZ_I_GUILDENSTERN_SU_MRTVI_%28Hamlet%29%2C_2006..jpg",
     title: "Rosencrantz and Guildenstern Are Dead",
     author: "Tom Stoppard",
     year: "1966",
@@ -282,6 +297,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "fo-mistero",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Dario_Fo_in_Venice_Film_Festival_02_%28cropped%29.jpg/330px-Dario_Fo_in_Venice_Film_Festival_02_%28cropped%29.jpg",
     title: "Mistero Buffo",
     author: "Dario Fo",
     year: "1969",
@@ -297,6 +313,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "shakespeare-tempest",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/First-page-first-folio-tempest.jpg/330px-First-page-first-folio-tempest.jpg",
     title: "The Tempest",
     author: "William Shakespeare",
     year: "1611",
@@ -312,6 +329,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "chejov-tres-hermanas",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Goyas_2025_-Nausicaa_Bonn%C3%ADn-1.jpg/330px-Goyas_2025_-Nausicaa_Bonn%C3%ADn-1.jpg",
     title: "Tres hermanas",
     author: "Antón Chéjov",
     year: "1901",
@@ -327,6 +345,7 @@ const _THEATERS_EXTENDED_RAW: Theater[] = [
   },
   {
     id: "weiss-marat-sade",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/en/e/ea/MaratSadePlayCover.jpg",
     title: "Marat/Sade",
     author: "Peter Weiss",
     year: "1963",
