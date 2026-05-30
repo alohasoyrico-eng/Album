@@ -266,7 +266,29 @@ export function getEmotionPageData(emotionId: string): EmotionPageData | null {
   const relatedColors = pickFromMap<ColorResonance>(emotion.colorResonance, COLOR_MAP);
   const relatedFonts = pickFromMap<TypographyResonance>(emotion.typographyResonance, FONT_MAP);
   const relatedArtworks = pickFromMap<Artwork>(emotion.artworkResonance, ARTWORK_MAP);
-  const relatedTracks = pickFromMap<Track>(emotion.musicResonance, TRACK_MAP);
+  // Same recipe as films: Marina's 3 curated picks anchor each
+  // emotion's lineup, then the resonance engine fills the remaining
+  // slots from the FULL ~93-track catalogue. Removes the old
+  // "Mahler-on-every-page" effect now that the pool is six times
+  // bigger and covers Latin / African / Asian / hip-hop / electronic.
+  const trackEnginePicks = resonateFrom(emotion.resonance, {
+    kinds: ["music"],
+    limit: 10,
+    mode: "expected",
+    excludeIds: [emotion.id],
+  });
+  const trackCurated = pickFromMap<Track>(emotion.musicResonance, TRACK_MAP);
+  const seenT = new Set<string>(trackCurated.map((t) => t.id));
+  const trackFill: Track[] = [];
+  for (const hit of trackEnginePicks) {
+    if (seenT.has(hit.entity.id)) continue;
+    const t = TRACK_MAP.get(hit.entity.id);
+    if (!t) continue;
+    trackFill.push(t);
+    seenT.add(t.id);
+    if (trackCurated.length + trackFill.length >= 6) break;
+  }
+  const relatedTracks = [...trackCurated.slice(0, 3), ...trackFill].slice(0, 6);
   // Films were the worst case of catalogue starvation: with only 16
   // curated entries for 72 emotions, each film ended up shared by 5-6
   // emotions and "2001: A Space Odyssey" appeared on nearly every page.

@@ -1,9 +1,15 @@
 import type { Track } from "@/types";
+import { TRACKS_EXTENDED } from "./music-extended";
 
 // Real music with authentic metadata. Last.fm IDs where available.
 // MusicBrainz IDs: https://musicbrainz.org/recording/{mbid}
+//
+// The CURATED set below is Marina's original 18 pairings. The
+// diversity expansion lives in music-extended.ts (LATAM, African,
+// Asian, hip-hop, electronic, contemporary). Combined into TRACKS at
+// the bottom so the resonance engine sees the full pool.
 
-export const TRACKS: Track[] = [
+const TRACKS_CURATED: Track[] = [
   {
     id: "bach-cello",
     title: "Cello Suite No. 1 in G Major, BWV 1007 — Prélude",
@@ -330,4 +336,5 @@ export const TRACKS: Track[] = [
   },
 ];
 
+export const TRACKS: Track[] = [...TRACKS_CURATED, ...TRACKS_EXTENDED];
 export const TRACK_MAP = new Map(TRACKS.map((t) => [t.id, t]));
