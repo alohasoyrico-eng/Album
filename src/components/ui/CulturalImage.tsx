@@ -95,11 +95,30 @@ export function CulturalImage(props: Props) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
+    // CRITICAL: when `fill` is set, the next/image element had
+    // `position:absolute; inset:0` so it filled the parent (which had
+    // `position:relative` + an explicit height). The fallback div
+    // doesn't get those absolute styles by default, so without this
+    // branch it would collapse to 0 px and the user would see nothing
+    // — which was the bug behind "todas las imágenes están rotas".
+    if (props.fill) {
+      return (
+        <FallbackTile
+          kind={kind}
+          accentColor={accentColor}
+          className={className}
+          style={{ position: "absolute", inset: 0, ...style }}
+          alt={alt}
+        />
+      );
+    }
     return (
       <FallbackTile
         kind={kind}
         accentColor={accentColor}
         className={className}
+        // For sized variants the className already carries the explicit
+        // w-/h- dimensions, so no positioning override is needed.
         style={style}
         alt={alt}
       />
