@@ -94,6 +94,11 @@ export function makeClaimAdapter<E extends CulturalEntity>(
   const { raw, rawMap, pick = {} } = opts;
   const _overlays: Record<string, Partial<CulturalClaims>> = {};
   const _materialised = new Map<string, E>();
+  // Generation counter per-id: bumped by registerOverlay so that any
+  // previously cached materialisation (built before the overlay arrived)
+  // is invalidated on the next read. Without this, the lazy PLURAL cache
+  // can latch onto a pre-overlay snapshot and mask all later claims.
+  const _overlayGenById = new Map<string, number>();
 
   function makeClaims(e: E): CulturalClaims {
     const desc = pick.description?.(e) ?? e.description ?? "";
@@ -126,10 +131,15 @@ export function makeClaimAdapter<E extends CulturalEntity>(
   function materialise(e: E): E {
     const cached = _materialised.get(e.id);
     if (cached && !_overlays[e.id]) return cached;
-    const base = cached?.claims ?? makeClaims(e);
+    const gen = _overlayGenById.get(e.id) ?? 0;
+    if (cached && (cached as E & { __gen?: number }).__gen === gen) return cached;
+    const base = makeClaims(e);
     const claims = merge(base, _overlays[e.id]);
-    const ext = { ...e, claims };
+    const ext: E & { __gen?: number } = { ...e, claims };
+    ext.__gen = gen;
     _materialised.set(e.id, ext);
+    // Invalidate the cached PLURAL array — next access re-materialises.
+    _pluralCache = null;
     return ext;
   }
 
@@ -181,6 +191,10 @@ export function makeClaimAdapter<E extends CulturalEntity>(
         (cur as Record<string, Claim<unknown>[]>)[key] = [...prev, ...next];
       }
       _overlays[id] = cur;
+      _overlayGenById.set(id, (_overlayGenById.get(id) ?? 0) + 1);
+      // Drop the per-id cache so the next read re-materialises with overlays.
+      _materialised.delete(id);
+      _pluralCache = null;
     },
     resolve(id, ctx = {}) {
       const e = MAP_PLURAL.get(id) ?? (rawMap.get(id) ? materialise(rawMap.get(id) as E) : null);

@@ -91,8 +91,14 @@ export function PluralReadings({ emotionId, accent }: Props) {
     ].filter(Boolean) as AltEntry[]
   );
 
-  // Nothing to surface — fail silent, don't waste page space.
-  if (lensesAvailable.length === 0 && allAlternatives.length === 0 && !hasDisagreement) {
+  // Nothing to surface AND participation is off — fail silent. When the
+  // backend is enabled, keep the section so visitors can always submit.
+  if (
+    lensesAvailable.length === 0 &&
+    allAlternatives.length === 0 &&
+    !hasDisagreement &&
+    !isParticipationEnabled()
+  ) {
     return null;
   }
 

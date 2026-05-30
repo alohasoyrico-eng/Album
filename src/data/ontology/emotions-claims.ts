@@ -29,6 +29,12 @@ import { EMOTIONS as RAW_EMOTIONS, EMOTION_MAP as RAW_EMOTION_MAP } from "./emot
 // (Fase 1.3 demo will inject one). Participation backend will write here too.
 const _overlays: Record<string, Partial<EmotionClaims>> = {};
 
+// Tracks how many times `registerOverlay(id, …)` has been called per id.
+// `materialise()` invalidates its cache when the entry was last built at
+// a generation lower than the current count. Declared BEFORE materialise()
+// so module init doesn't hit TDZ when EMOTIONS_PLURAL materialises eagerly.
+const _overlayGenById = new Map<string, number>();
+
 export function registerOverlay(emotionId: string, claims: Partial<EmotionClaims>) {
   const cur = _overlays[emotionId] ?? {};
   // Merge each field's claims array
@@ -39,6 +45,7 @@ export function registerOverlay(emotionId: string, claims: Partial<EmotionClaims
     (cur as Record<string, Claim<unknown>[]>)[key] = [...prev, ...next];
   }
   _overlays[emotionId] = cur;
+  _overlayGenById.set(emotionId, (_overlayGenById.get(emotionId) ?? 0) + 1);
 }
 
 // ─── Build the plural face from the canonical seed ───────────────────────
@@ -81,10 +88,21 @@ const _materialised = new Map<string, Emotion>();
 
 function materialise(e: Emotion): Emotion {
   const cached = _materialised.get(e.id);
+  // INVARIANT: if no overlays for this id, the cached materialisation
+  // (made from Marina canonical alone) is still correct.
   if (cached && !_overlays[e.id]) return cached;
-  const base = cached?.claims ?? makeClaims(e);
+  // If overlays exist, rebuild from raw claims + overlay every time the
+  // overlay shape might have changed. We track a per-id "overlay
+  // generation" counter so cached entries that were built at an earlier
+  // generation are invalidated automatically. Without this, `EMOTIONS_PLURAL`
+  // (built at module init, before applyEmotionSeedOverlays runs) would
+  // mask all subsequent overlays.
+  const gen = _overlayGenById.get(e.id) ?? 0;
+  if (cached && (cached as Emotion & { __gen?: number }).__gen === gen) return cached;
+  const base = makeClaims(e);
   const claims = mergeClaims(base, _overlays[e.id]);
-  const ext: Emotion = { ...e, claims };
+  const ext: Emotion & { __gen?: number } = { ...e, claims };
+  ext.__gen = gen;
   _materialised.set(e.id, ext);
   return ext;
 }
@@ -151,7 +169,12 @@ export interface ResolvedEmotion {
 }
 
 export function resolveEmotion(emotionId: string, ctx: ReadContext = {}): ResolvedEmotion | null {
-  const e = EMOTION_MAP_PLURAL.get(emotionId) ?? materialise(RAW_EMOTION_MAP.get(emotionId)!);
+  // Always go through materialise() so overlay-gen invalidation runs;
+  // EMOTION_MAP_PLURAL entries were cached at module init, before
+  // applyEmotionSeedOverlays() (and any subsequent participation
+  // hydration) populated `_overlays`.
+  const rawE = RAW_EMOTION_MAP.get(emotionId);
+  const e = rawE ? materialise(rawE) : null;
   if (!e) return null;
   const c = e.claims!;
 
@@ -205,7 +228,8 @@ export function resolveEmotion(emotionId: string, ctx: ReadContext = {}): Resolv
 
 /** Convenience accessor: returns the materialised plural Emotion. */
 export function getEmotion(id: string): Emotion | null {
-  return EMOTION_MAP_PLURAL.get(id) ?? null;
+  const rawE = RAW_EMOTION_MAP.get(id);
+  return rawE ? materialise(rawE) : null;
 }
 
 /**
@@ -217,7 +241,8 @@ export function getEmotion(id: string): Emotion | null {
  * "feel" the active perspective.
  */
 export function liveResonance(emotionId: string, ctx: ReadContext = {}): import("@/types").ResonanceAxes {
-  const e = EMOTION_MAP_PLURAL.get(emotionId);
+  const rawE = RAW_EMOTION_MAP.get(emotionId);
+  const e = rawE ? materialise(rawE) : null;
   if (!e?.claims?.resonance) return e?.resonance ?? {
     energy: 50, temperature: 50, tension: 50, density: 50, movement: 50,
     temporality: 50, humanity: 50, clarity: 50, intimacy: 50, control: 50,
@@ -239,7 +264,8 @@ export function liveResonance(emotionId: string, ctx: ReadContext = {}): import(
  */
 export function lensShiftsResonance(emotionId: string, ctx: ReadContext): boolean {
   if (!ctx.lens) return false;
-  const e = EMOTION_MAP_PLURAL.get(emotionId);
+  const rawE = RAW_EMOTION_MAP.get(emotionId);
+  const e = rawE ? materialise(rawE) : null;
   if (!e?.claims?.resonance) return false;
   const live = liveResonance(emotionId, ctx);
   const canon = e.resonance;
@@ -250,7 +276,8 @@ export function lensShiftsResonance(emotionId: string, ctx: ReadContext): boolea
 }
 
 export function listLensesPresent(emotionId: string): LensKey[] {
-  const e = EMOTION_MAP_PLURAL.get(emotionId);
+  const rawE = RAW_EMOTION_MAP.get(emotionId);
+  const e = rawE ? materialise(rawE) : null;
   if (!e?.claims) return [];
   const s = new Set<LensKey>();
   for (const field of Object.values(e.claims)) {

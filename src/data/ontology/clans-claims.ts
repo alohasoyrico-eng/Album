@@ -11,6 +11,7 @@ import { resolve, consensusList } from "@/lib/consensus";
 import { CLANS as RAW_CLANS, CLAN_MAP as RAW_CLAN_MAP } from "./clans";
 
 const _overlays: Record<string, Partial<ClanClaims>> = {};
+const _overlayGenById = new Map<string, number>();
 
 export function registerClanOverlay(clanId: string, claims: Partial<ClanClaims>) {
   const cur = _overlays[clanId] ?? {};
@@ -21,6 +22,7 @@ export function registerClanOverlay(clanId: string, claims: Partial<ClanClaims>)
     (cur as Record<string, Claim<unknown>[]>)[key] = [...prev, ...next];
   }
   _overlays[clanId] = cur;
+  _overlayGenById.set(clanId, (_overlayGenById.get(clanId) ?? 0) + 1);
 }
 
 function makeClaims(c: Clan): ClanClaims {
@@ -50,9 +52,12 @@ const _materialised = new Map<string, Clan>();
 function materialise(c: Clan): Clan {
   const cached = _materialised.get(c.id);
   if (cached && !_overlays[c.id]) return cached;
-  const base = cached?.claims ?? makeClaims(c);
+  const gen = _overlayGenById.get(c.id) ?? 0;
+  if (cached && (cached as Clan & { __gen?: number }).__gen === gen) return cached;
+  const base = makeClaims(c);
   const claims = mergeClaims(base, _overlays[c.id]);
-  const ext: Clan = { ...c, claims };
+  const ext: Clan & { __gen?: number } = { ...c, claims };
+  ext.__gen = gen;
   _materialised.set(c.id, ext);
   return ext;
 }
@@ -76,7 +81,10 @@ export interface ResolvedClan {
 }
 
 export function resolveClan(clanId: string, ctx: ReadContext = {}): ResolvedClan | null {
-  const c = CLAN_MAP_PLURAL.get(clanId) ?? materialise(RAW_CLAN_MAP.get(clanId)!);
+  // Always go through materialise() so overlay-gen invalidation runs;
+  // CLAN_MAP_PLURAL entries may have been cached before overlays registered.
+  const rawC = RAW_CLAN_MAP.get(clanId);
+  const c = rawC ? materialise(rawC) : null;
   if (!c?.claims) return null;
   const desc = resolve(c.claims.description, ctx);
   return {
@@ -91,7 +99,8 @@ export function resolveClan(clanId: string, ctx: ReadContext = {}): ResolvedClan
 }
 
 export function listClanLensesPresent(clanId: string): LensKey[] {
-  const c = CLAN_MAP_PLURAL.get(clanId);
+  const rawC = RAW_CLAN_MAP.get(clanId);
+  const c = rawC ? materialise(rawC) : null;
   if (!c?.claims) return [];
   const s = new Set<LensKey>();
   for (const field of Object.values(c.claims)) {

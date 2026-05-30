@@ -12,6 +12,7 @@ import { resolve } from "@/lib/consensus";
 import { TRIBES as RAW_TRIBES, TRIBE_MAP as RAW_TRIBE_MAP } from "./tribes";
 
 const _overlays: Record<string, Partial<TribeClaims>> = {};
+const _overlayGenById = new Map<string, number>();
 
 export function registerTribeOverlay(tribeId: string, claims: Partial<TribeClaims>) {
   const cur = _overlays[tribeId] ?? {};
@@ -22,6 +23,7 @@ export function registerTribeOverlay(tribeId: string, claims: Partial<TribeClaim
     (cur as Record<string, Claim<unknown>[]>)[key] = [...prev, ...next];
   }
   _overlays[tribeId] = cur;
+  _overlayGenById.set(tribeId, (_overlayGenById.get(tribeId) ?? 0) + 1);
 }
 
 function makeClaims(t: Tribe): TribeClaims {
@@ -50,9 +52,12 @@ const _materialised = new Map<string, Tribe>();
 function materialise(t: Tribe): Tribe {
   const cached = _materialised.get(t.id);
   if (cached && !_overlays[t.id]) return cached;
-  const base = cached?.claims ?? makeClaims(t);
+  const gen = _overlayGenById.get(t.id) ?? 0;
+  if (cached && (cached as Tribe & { __gen?: number }).__gen === gen) return cached;
+  const base = makeClaims(t);
   const claims = mergeClaims(base, _overlays[t.id]);
-  const ext: Tribe = { ...t, claims };
+  const ext: Tribe & { __gen?: number } = { ...t, claims };
+  ext.__gen = gen;
   _materialised.set(t.id, ext);
   return ext;
 }
@@ -78,7 +83,9 @@ export interface ResolvedTribe {
 
 export function resolveTribe(tribeId: string, ctx: ReadContext = {}): ResolvedTribe | null {
   const id = tribeId as import("@/types").TribeId;
-  const t = TRIBE_MAP_PLURAL.get(id) ?? materialise(RAW_TRIBE_MAP.get(id)!);
+  // Bypass cached map; materialise() handles overlay-gen invalidation.
+  const rawT = RAW_TRIBE_MAP.get(id);
+  const t = rawT ? materialise(rawT) : null;
   if (!t?.claims) return null;
   const desc = resolve(t.claims.description, ctx);
   return {
@@ -92,7 +99,8 @@ export function resolveTribe(tribeId: string, ctx: ReadContext = {}): ResolvedTr
 }
 
 export function listTribeLensesPresent(tribeId: string): LensKey[] {
-  const t = TRIBE_MAP_PLURAL.get(tribeId as import("@/types").TribeId);
+  const rawT = RAW_TRIBE_MAP.get(tribeId as import("@/types").TribeId);
+  const t = rawT ? materialise(rawT) : null;
   if (!t?.claims) return [];
   const s = new Set<LensKey>();
   for (const field of Object.values(t.claims)) {
