@@ -4,9 +4,10 @@
  * Vernacular), 20th-century classics, and contemporary social housing.
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Architecture } from "@/types";
 
-export const ARCHITECTURES_EXTENDED: Architecture[] = [
+const _ARCHITECTURES_EXTENDED_RAW: Architecture[] = [
   {
     id: "barragan-casa",
     title: "Casa Estudio Luis Barragán",
@@ -383,3 +384,5 @@ export const ARCHITECTURES_EXTENDED: Architecture[] = [
     poeticDescription: "La India recién independiente quería arquitectura sin pasado colonial. Corbusier le entregó concreto bruto bajo el sol del Punjab.",
   },
 ];
+
+export const ARCHITECTURES_EXTENDED = autoFillResonance(_ARCHITECTURES_EXTENDED_RAW);

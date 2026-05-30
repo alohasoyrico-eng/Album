@@ -29,9 +29,10 @@
  * Spotify / Last.fm IDs.
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Track } from "@/types";
 
-export const TRACKS_EXTENDED: Track[] = [
+const _TRACKS_EXTENDED_RAW: Track[] = [
   // ─── Latin American (16) ────────────────────────────────────────
   {
     id: "lara-noche-de-ronda",
@@ -915,3 +916,5 @@ export const TRACKS_EXTENDED: Track[] = [
     description: "Kate Bush ofrece intercambiar lugares con Dios para entender al amante. La canción sube la colina con ella.",
   },
 ];
+
+export const TRACKS_EXTENDED = autoFillResonance(_TRACKS_EXTENDED_RAW);

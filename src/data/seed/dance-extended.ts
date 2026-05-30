@@ -2,9 +2,10 @@
  * dance-extended — diversity expansion (8 → ~28).
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Dance } from "@/types";
 
-export const DANCES_EXTENDED: Dance[] = [
+const _DANCES_EXTENDED_RAW: Dance[] = [
   {
     id: "flamenco-solea",
     title: "Soleá",
@@ -272,3 +273,5 @@ export const DANCES_EXTENDED: Dance[] = [
     poeticDescription: "Alarippu es despertar — el cuerpo se despierta gesto a gesto, hasta que el bailarín está listo para ser narrativa.",
   },
 ];
+
+export const DANCES_EXTENDED = autoFillResonance(_DANCES_EXTENDED_RAW);

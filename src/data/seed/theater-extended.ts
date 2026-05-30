@@ -6,9 +6,10 @@
  * Augusto Boal, and post-dramatic theatre.
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Theater } from "@/types";
 
-export const THEATERS_EXTENDED: Theater[] = [
+const _THEATERS_EXTENDED_RAW: Theater[] = [
   {
     id: "boal-oprimidos",
     title: "Teatro del Oprimido",
@@ -370,3 +371,5 @@ export const THEATERS_EXTENDED: Theater[] = [
     poeticDescription: "Una caja deja de ser caja cuando la mirada infantil la convierte en barco, en castillo, en abrazo.",
   },
 ];
+
+export const THEATERS_EXTENDED = autoFillResonance(_THEATERS_EXTENDED_RAW);

@@ -2,9 +2,10 @@
  * ritual-extended — diversity expansion (8 → ~25).
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Ritual } from "@/types";
 
-export const RITUALS_EXTENDED: Ritual[] = [
+const _RITUALS_EXTENDED_RAW: Ritual[] = [
   {
     id: "dia-muertos",
     title: "Día de Muertos",
@@ -286,3 +287,5 @@ export const RITUALS_EXTENDED: Ritual[] = [
     poeticDescription: "El novenario popular: nueve noches en que la casa del muerto se llena de mujeres rezando en cadena, hasta que el alma se va.",
   },
 ];
+
+export const RITUALS_EXTENDED = autoFillResonance(_RITUALS_EXTENDED_RAW);

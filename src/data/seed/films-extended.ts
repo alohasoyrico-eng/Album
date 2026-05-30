@@ -32,9 +32,10 @@
  * project's identity. A future TMDB ingest pass can fill in posters.
  */
 
+import { autoFillResonance } from "./_autoFillResonance";
 import type { Film } from "@/types";
 
-export const FILMS_EXTENDED: Film[] = [
+const _FILMS_EXTENDED_RAW: Film[] = [
   // ─── Latin American ────────────────────────────────────────────
   {
     id: "bunuel-olvidados",
@@ -997,3 +998,5 @@ export const FILMS_EXTENDED: Film[] = [
     source: "seed",
   },
 ];
+
+export const FILMS_EXTENDED = autoFillResonance(_FILMS_EXTENDED_RAW);
