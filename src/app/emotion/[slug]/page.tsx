@@ -1,9 +1,17 @@
 import { notFound } from "next/navigation";
 import { EMOTION_MAP, EMOTIONS } from "@/data/ontology/emotions";
-import { EmotionDetail } from "@/components/editorial/EmotionDetail";
+import { EmotionOverview } from "@/components/editorial/EmotionOverview";
 import { emotionTypeSet } from "@/lib/emotionFonts";
 import { buildTypeSetUrls } from "@/lib/fontStylesheet";
-import { getEmotionPageData } from "@/lib/server/emotionPageData";
+import { getEmotionOverviewData } from "@/lib/server/emotionOverviewData";
+
+/**
+ * /emotion/[slug] — the slim overview view.
+ *
+ * Heavy cultural, resonance, and plural-readings sections live at
+ * /emotion/[slug]/explore. This page is what most visitors see and
+ * it's intentionally lighter so it feels instant.
+ */
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -25,19 +33,11 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function EmotionPage({ params }: Props) {
   const { slug } = await params;
-  // All catalogue lookups + visual derivations happen here, on the server.
-  // The client component receives a single, fully-materialised payload —
-  // it imports zero seed catalogues, zero derivation libraries, and zero
-  // resonance-engine code. See lib/server/emotionPageData.ts for the
-  // rationale and what's pre-computed.
-  const pageData = getEmotionPageData(decodeURIComponent(slug));
+  const pageData = getEmotionOverviewData(decodeURIComponent(slug));
   if (!pageData) notFound();
 
-  // Per-page font loading. We split the typeset into two requests so
-  // they can use different `font-display` strategies — see
-  // lib/fontStylesheet.ts for the rationale. Title font uses `swap`
-  // (FOUT acceptable, identity visible); body/literary/technical use
-  // `optional` (no mid-paint jank).
+  // Per-page font split: title in `swap`, body in `optional`. See
+  // lib/fontStylesheet.ts.
   const { primary: titleFontUrl, supporting: bodyFontsUrl } =
     buildTypeSetUrls(emotionTypeSet(pageData.emotion.id));
 
@@ -49,7 +49,7 @@ export default async function EmotionPage({ params }: Props) {
       {bodyFontsUrl && (
         <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
-      <EmotionDetail pageData={pageData} />
+      <EmotionOverview pageData={pageData} />
     </>
   );
 }
