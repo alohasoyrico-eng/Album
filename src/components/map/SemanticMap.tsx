@@ -232,19 +232,10 @@ const GLYPH: Partial<Record<string, string>> = {
   ritual:       ICON.ritual,
   theater:      ICON.theater,
 };
-// Module-level cache for the precomputed layout. Keyed by viewport
-// dimensions; the home page reuses the entry on remount (e.g. after
-// navigating away and back) so the simulation pays its ~50 ms cost
-// at most once per session.
-const _layoutCache = new Map<string, {
-  nodes: MapNode[];
-  curated: MapLink[];
-  emergent: MapLink[];
-}>();
-
 // ─── Component ────────────────────────────────────────────────────────────────
 export function SemanticMap() {
   const svgRef = useRef<SVGSVGElement>(null);
+  const simulationRef = useRef<d3.Simulation<MapNode, MapLink> | null>(null);
   const router = useRouter();
   const { hoveredNode, selectedNode, activeFilter, activeTribe, setHoveredNode, setSelectedNode } = useMapStore();
   const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
@@ -269,55 +260,31 @@ export function SemanticMap() {
   // as the resonance-engine's inferred neighborhood.
   useEffect(() => {
     if (!dimensions.w) return;
-    // ─── Precomputed layout strategy ──────────────────────────────
-    // Before: d3 ran a force simulation continuously, updating
-    // setNodes()/setLinks() on every tick for ~5 seconds. With ~1300
-    // nodes that was the main reason the home page felt sluggish:
-    // React reconciliation + SVG paint × 60fps × 5 seconds = main
-    // thread saturated during the first interaction window.
-    //
-    // After: the same simulation runs ONCE, synchronously, to
-    // completion. We use sim.tick(N) with N chosen so alpha decays
-    // below the threshold — d3 reaches the same converged layout
-    // either way, just without re-rendering between ticks. Then we
-    // commit a single setNodes() with the final positions, and the
-    // simulation is discarded.
-    //
-    // The cache below (_layoutCache) memoises the result across
-    // re-mounts of the home page so navigating away and back is
-    // instant. Cache key is the viewport dimensions because the
-    // forceCenter changes with them; in practice the user's window
-    // rarely changes, so the cache hits every time.
-    const cacheKey = `${dimensions.w}x${dimensions.h}`;
-    let prepared = _layoutCache.get(cacheKey);
-    if (!prepared) {
-      const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
-      const sim = d3
-        .forceSimulation<MapNode, MapLink>(rawNodes)
-        .force("link", d3.forceLink<MapNode, MapLink>(rawCurated)
-          .id((d) => d.id)
-          .distance((d) => 120 - d.strength * 60)
-          .strength((d) => d.strength * 0.4))
-        .force("charge", d3.forceManyBody().strength(-280).distanceMax(400))
-        .force("collision", d3.forceCollide<MapNode>((d) => nodeRadius(d) + 18))
-        .force("center", d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.05))
-        .force("cluster", clusterForce(rawNodes, dimensions.w, dimensions.h))
-        .force("clan", clanForce(rawNodes))
-        .force("resonance-gravity", resonanceGravityForce(rawNodes))
-        .alphaDecay(0.015)
-        .velocityDecay(0.35)
-        .stop(); // never auto-tick; we control the loop.
-      // 300 iterations is enough for alpha to decay below ~0.001 with
-      // the rates configured above — visually identical to the old
-      // continuously-animated convergence, just compressed into ~50 ms
-      // of synchronous work that happens once.
-      for (let i = 0; i < 300; i++) sim.tick();
-      prepared = { nodes: rawNodes, curated: rawCurated, emergent: rawEmergent };
-      _layoutCache.set(cacheKey, prepared);
-    }
-    setNodes(prepared.nodes);
-    setLinks(prepared.curated as MapLink[]);
-    setEmergentLinks(prepared.emergent as MapLink[]);
+    const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
+    const sim = d3
+      .forceSimulation<MapNode, MapLink>(rawNodes)
+      .force("link", d3.forceLink<MapNode, MapLink>(rawCurated)
+        .id((d) => d.id)
+        .distance((d) => 120 - d.strength * 60)
+        .strength((d) => d.strength * 0.4))
+      .force("charge", d3.forceManyBody().strength(-280).distanceMax(400))
+      .force("collision", d3.forceCollide<MapNode>((d) => nodeRadius(d) + 18))
+      .force("center", d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.05))
+      .force("cluster", clusterForce(rawNodes, dimensions.w, dimensions.h))
+      .force("clan", clanForce(rawNodes))
+      // ─── Cultural entities orbit the emotions they actually resonate with
+      .force("resonance-gravity", resonanceGravityForce(rawNodes))
+      .alphaDecay(0.015)
+      .velocityDecay(0.35);
+    sim.on("tick", () => {
+      setNodes([...rawNodes]);
+      setLinks([...rawCurated]);
+    });
+    simulationRef.current = sim;
+    setNodes(rawNodes);
+    setLinks(rawCurated as MapLink[]);
+    setEmergentLinks(rawEmergent as MapLink[]);
+    return () => { sim.stop(); };
   }, [dimensions]);
   // ─── Personality animation loop (visual layer) ────────────────────────────
   useEffect(() => {
