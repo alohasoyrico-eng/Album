@@ -4,6 +4,7 @@ import { EmotionOverview } from "@/components/editorial/EmotionOverview";
 import { emotionTypeSet } from "@/lib/emotionFonts";
 import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getEmotionOverviewData } from "@/lib/server/emotionOverviewData";
+import { PerfBeacon } from "@/components/devtools/PerfBeacon";
 
 /**
  * /emotion/[slug] — the slim overview view.
@@ -50,6 +51,7 @@ export default async function EmotionPage({ params }: Props) {
         <link rel="stylesheet" href={bodyFontsUrl} precedence="emergent-fonts" />
       )}
       <EmotionOverview pageData={pageData} />
+      <PerfBeacon page="emotion-overview" />
     </>
   );
 }

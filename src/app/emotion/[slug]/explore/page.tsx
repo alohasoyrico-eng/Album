@@ -5,6 +5,7 @@ import { EmotionDetail } from "@/components/editorial/EmotionDetail";
 import { emotionTypeSet } from "@/lib/emotionFonts";
 import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getEmotionPageData } from "@/lib/server/emotionPageData";
+import { PerfBeacon } from "@/components/devtools/PerfBeacon";
 
 /**
  * /emotion/[slug]/explore — the deep view.
@@ -66,6 +67,7 @@ export default async function EmotionExplorePage({ params }: Props) {
         </Link>
       </div>
       <EmotionDetail pageData={pageData} />
+      <PerfBeacon page="emotion-explore" />
     </>
   );
 }

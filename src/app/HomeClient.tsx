@@ -23,6 +23,7 @@ import { TRIBES } from "@/data/ontology/tribes";
 import { EMOTIONS } from "@/data/ontology/emotions";
 import { COLORS } from "@/data/colors/colorResonance";
 import { detectReturnVisit, trackEvent } from "@/lib/analytics";
+import { markPerf } from "@/lib/perfTrace";
 import type { MapLayoutPayload } from "@/lib/server/mapLayout";
 
 interface RotatingSuggestion {
@@ -75,6 +76,7 @@ export function HomeClient({ mapLayout }: Props) {
   function goCurrent() {
     if (!current) return;
     trackEvent("node_clicked", { nodeId: current.href, entry: "hero_chip_rotating" });
+    if (current.href.startsWith("/emotion/")) markPerf("emotion-nav-start");
     router.push(current.href);
   }
 
