@@ -233,15 +233,26 @@ const GLYPH: Partial<Record<string, string>> = {
   theater:      ICON.theater,
 };
 // ─── Component ────────────────────────────────────────────────────────────────
-export function SemanticMap() {
+interface SemanticMapProps {
+  /** Layout precomputed at build time by lib/server/mapLayout.ts.
+   *  When provided the client skips its own d3-force simulation. */
+  layout?: import("@/lib/server/mapLayout").MapLayoutPayload;
+}
+
+export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const svgRef = useRef<SVGSVGElement>(null);
   const simulationRef = useRef<d3.Simulation<MapNode, MapLink> | null>(null);
   const router = useRouter();
   const { hoveredNode, selectedNode, activeFilter, activeTribe, setHoveredNode, setSelectedNode } = useMapStore();
-  const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
-  const [nodes, setNodes] = useState<MapNode[]>([]);
-  const [links, setLinks] = useState<MapLink[]>([]);
-  const [emergentLinks, setEmergentLinks] = useState<MapLink[]>([]);
+  // When `layout` is provided, dimensions just feed d3-zoom + responsive
+  // overlays. The simulation is skipped entirely.
+  const [dimensions, setDimensions] = useState({
+    w: layout?.viewBox.w ?? 0,
+    h: layout?.viewBox.h ?? 0,
+  });
+  const [nodes, setNodes] = useState<MapNode[]>(layout?.nodes ?? []);
+  const [links, setLinks] = useState<MapLink[]>(layout?.curatedLinks ?? []);
+  const [emergentLinks, setEmergentLinks] = useState<MapLink[]>(layout?.emergentLinks ?? []);
   /** Which link layer(s) to render: curated (Marina), emergent (vector), or both. */
   const [linkMode, setLinkMode] = useState<"curated" | "emergent" | "both">("both");
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
@@ -255,10 +266,11 @@ export function SemanticMap() {
     return () => window.removeEventListener("resize", update);
   }, []);
   // ─── D3 force simulation (structural layer) ───────────────────────────────
-  // The simulation uses CURATED links for structural pull (these are the
-  // canonical Marina-era relationships). EMERGENT links are rendered on top
-  // as the resonance-engine's inferred neighborhood.
+  // Skipped when `layout` is supplied (the build-time precompute path).
+  // Kept as a fallback so existing callers without a layout still render —
+  // they take the old hit on first paint but at least don't crash.
   useEffect(() => {
+    if (layout) return; // precomputed layout already in state; nothing to do.
     if (!dimensions.w) return;
     const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
     const sim = d3
@@ -272,7 +284,6 @@ export function SemanticMap() {
       .force("center", d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.05))
       .force("cluster", clusterForce(rawNodes, dimensions.w, dimensions.h))
       .force("clan", clanForce(rawNodes))
-      // ─── Cultural entities orbit the emotions they actually resonate with
       .force("resonance-gravity", resonanceGravityForce(rawNodes))
       .alphaDecay(0.015)
       .velocityDecay(0.35);
