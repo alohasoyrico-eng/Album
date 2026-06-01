@@ -241,6 +241,7 @@ interface SemanticMapProps {
 
 export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const simulationRef = useRef<d3.Simulation<MapNode, MapLink> | null>(null);
   const router = useRouter();
   const { hoveredNode, selectedNode, activeFilter, activeTribe, setHoveredNode, setSelectedNode } = useMapStore();
@@ -467,6 +468,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     }
     return m;
   }, [nodes, animTick, pivot, connectedIds, selectedNode, STATIC_OFFSET]);
+  // ─── Attention set (drives Canvas/SVG split) ──────────────────────────────
+  // SVG renders only this set — pivot, hovered, selected, plus everything
+  // directly connected to the pivot. Canvas paints everyone else.
+  const attentionSet = useMemo(() => {
+    const s = new Set<string>();
+    if (pivot) s.add(pivot);
+    if (hoveredNode) s.add(hoveredNode);
+    if (selectedNode) s.add(selectedNode);
+    for (const id of connectedIds) s.add(id);
+    return s;
+  }, [pivot, hoveredNode, selectedNode, connectedIds]);
   // ─── Quadtree over precomputed positions (Capa B) ─────────────────────────
   // Built once from the build-time layout, the quadtree lets us cull nodes
   // outside the visible viewport before paying for ~3 SVG layers × 1300
@@ -531,6 +543,85 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const y = (n.y + (off?.dy ?? 0)) * transform.k + transform.y;
     return { x, y };
   }, [pivot, nodes, nodeOffsets, transform]);
+  // ─── Canvas paint: all AMBIENT nodes in one pass ──────────────────────────
+  // Replaces 3 SVG layers (deco/hit/labels) × ~1300 nodes ≈ 4000 elements
+  // with a single canvas paint of a few thousand 2D ops. Repaints only when
+  // node data, filter, or attention set changes — never per animation tick.
+  // Runs in world-space coordinates; CSS transform on the wrapper handles
+  // zoom/pan for free (no repaint on drag/wheel).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !nodes.length || !layout) return;
+    const W = layout.viewBox.w;
+    const H = layout.viewBox.h;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for perf
+    if (canvas.width !== W * dpr) {
+      canvas.width = W * dpr;
+      canvas.height = H * dpr;
+      canvas.style.width = `${W}px`;
+      canvas.style.height = `${H}px`;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    // Resolve theme-dependent colours (canvas doesn't read CSS vars).
+    const styles = getComputedStyle(document.documentElement);
+    const inkColor = styles.getPropertyValue("--album-ink").trim() || "#F0EDE8";
+    const inkMuted = styles.getPropertyValue("--album-ink-muted").trim() || "#8A8799";
+    for (const node of nodes) {
+      if (node.x === undefined || node.y === undefined) continue;
+      // Attention set is rendered by SVG — skip here.
+      if (attentionSet.has(node.id)) continue;
+      const r = nodeRadius(node);
+      const filtered = isNodeFiltered(node);
+      const isEmotion = node.type === "emotion";
+      const isColor = node.type === "color";
+      const isClanMate = pivot ? clanMateIds.has(node.id) : false;
+      const isEchoConn = pivot ? echoIds.has(node.id) : false;
+      // Same opacity ladder as the SVG path used.
+      const opacity = !filtered ? 0.06
+        : !pivot ? 1
+        : isClanMate ? 0.7
+        : isEchoConn ? 0.45
+        : 0.12;
+      if (opacity < 0.04) continue; // imperceptible — skip the paint
+      const fillColor = node.color ?? "#888";
+      // Body fill (cultural & emotion, not color)
+      if (!isColor) {
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = fillColor;
+        ctx.globalAlpha = opacity * (isEmotion ? 1 : 0.65);
+        ctx.fill();
+      }
+      // Body stroke
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = fillColor;
+      ctx.lineWidth = isEmotion ? 1.2 : 0.6;
+      ctx.globalAlpha = opacity * (isEmotion ? 0.95 : 0.55);
+      ctx.stroke();
+      // Emotion-only label (canvas can't reliably render Material Symbols
+      // ligatures, so we drop glyphs for cultural nodes — they were already
+      // invisible at rest anyway given the 0 label-opacity rule for non-
+      // emotion types).
+      if (isEmotion && opacity >= 0.3) {
+        ctx.fillStyle = inkColor;
+        ctx.globalAlpha = 0.7 * opacity;
+        ctx.font = '9px "Space Grotesk", system-ui, sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(node.label, node.x, node.y + r + 6);
+      }
+      // Cultural-node muted label when pivot connection lights them up
+      // (matches the SVG fillOpacity = isPivotConn && pivot ? 0.9 rule).
+      // Ambient nodes are by definition NOT connected to pivot, so this
+      // branch is unreachable here — left for symmetry.
+      void inkMuted;
+    }
+    ctx.globalAlpha = 1;
+  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -581,13 +672,58 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         height={dimensions.h}
         focusPoint={focusPoint}
       />
+      {/* Canvas: paints all AMBIENT nodes (everything NOT in the attention
+          set). Lives in world-space coords; the wrapper applies the d3-zoom
+          transform via CSS so pan/zoom never trigger a repaint. */}
+      {layout && (
+        <div
+          aria-hidden
+          className="absolute top-0 left-0 pointer-events-none"
+          style={{
+            width: layout.viewBox.w,
+            height: layout.viewBox.h,
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
+            transformOrigin: "0 0",
+            willChange: "transform",
+          }}
+        >
+          <canvas ref={canvasRef} style={{ display: "block" }} />
+        </div>
+      )}
       <svg
         ref={svgRef}
         className="relative w-full h-full cursor-grab active:cursor-grabbing"
         style={{ touchAction: "none" }}
+        onPointerMove={(e) => {
+          // Single quadtree-based hover handler. Replaces ~1300 per-node
+          // onMouseEnter listeners. World-space lookup: invert the d3-zoom
+          // transform on the pointer position, then quadtree.find(...) for
+          // the nearest node within a radius. ~O(log n) per move event.
+          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          const wx = (e.clientX - rect.left - transform.x) / transform.k;
+          const wy = (e.clientY - rect.top - transform.y) / transform.k;
+          const HIT_RADIUS = 24 / transform.k; // visual ~24px regardless of zoom
+          const found = nodeQuadtree.find(wx, wy, HIT_RADIUS);
+          if (found) {
+            if (hoveredNode !== found.id) {
+              setHoveredNode(found.id);
+              trackEvent("node_hovered", { nodeId: found.id, type: found.type });
+            }
+          } else if (hoveredNode) {
+            setHoveredNode(null);
+          }
+        }}
+        onPointerLeave={() => { if (hoveredNode) setHoveredNode(null); }}
         onClick={(e) => {
-          // Click on empty canvas (not a node <g>) deselects.
-          if ((e.target as SVGElement).tagName === "svg") setSelectedNode(null);
+          // Quadtree-based click. If pointer is over a node, toggle pin;
+          // otherwise deselect.
+          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          const wx = (e.clientX - rect.left - transform.x) / transform.k;
+          const wy = (e.clientY - rect.top - transform.y) / transform.k;
+          const HIT_RADIUS = 24 / transform.k;
+          const found = nodeQuadtree.find(wx, wy, HIT_RADIUS);
+          if (found) handleNodeClick(found);
+          else setSelectedNode(null);
         }}
 >
         <defs>
@@ -744,13 +880,14 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             hit layer above; its label sits in the label layer above that.
           */}
           {(() => {
-            // Viewport culling: only render nodes visible in the current
-            // transform (with margin). See `visibleNodeIds` for the AABB
-            // logic. Falls back to "render all" if the quadtree isn't ready.
-            const culled = visibleNodeIds
-              ? nodes.filter((n) => visibleNodeIds.has(n.id))
+            // Canvas mode: SVG renders ONLY the attention set (pivot,
+            // connected, hovered, selected). Everything else is on the
+            // canvas underneath. Falls back to "render all" if the canvas
+            // isn't available (no layout — legacy callers).
+            const attentionOnly = layout
+              ? nodes.filter((n) => attentionSet.has(n.id))
               : nodes;
-            const sortedNodes = [...culled].sort((a, b) => {
+            const sortedNodes = [...attentionOnly].sort((a, b) => {
               const pri = (id: string) => {
                 if (connectedIds.has(id) && id !== pivot) return 3;
                 if (id === pivot) return 2;
@@ -876,25 +1013,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     </g>
                   ))}
                 </g>
-                {/* ─── Layer 4: Hit targets (THE ONLY clickable layer) ─── */}
-                <g className="map-hits">
-                  {rendered.map(({ node, x, y, hitR, opacity }) => (
-                    // Transparent circle sized to the perceived body. Decoupled
-                    // from visual halos, so nothing else in the SVG can shadow it.
-                    <circle
-                      key={node.id}
-                      cx={x} cy={y} r={hitR}
-                      fill="transparent"
-                      style={{ cursor: opacity> 0.3 ? "pointer" : "default" }}
-                      onMouseEnter={() => {
-                        setHoveredNode(node.id);
-                        trackEvent("node_hovered", { nodeId: node.id, type: node.type });
-                      }}
-                      onMouseLeave={() => setHoveredNode(null)}
-                      onClick={() => handleNodeClick(node)}
-                    />
-                  ))}
-                </g>
+                {/* Hit-target layer removed — quadtree-based onPointerMove on
+                    the <svg> handles ALL hover/click (attention + ambient)
+                    in one pass via d3-quadtree.find(). See the handlers on
+                    the parent <svg>. */}
                 {/* ─── Layer 5: Labels (above everything, never clickable) ─── */}
                 <g className="map-labels" pointerEvents="none">
                   {rendered.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn }) => (

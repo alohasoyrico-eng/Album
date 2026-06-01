@@ -121,11 +121,13 @@
 
   --album-selection:      rgba(200, 147, 90, 0.32);
 
-  /* Soft, warm atmospheric gradients (dawn sky) */
-  --album-atmospheric-1:  rgba(200, 147, 90, 0.10);  /* warm amber wash */
-  --album-atmospheric-2:  rgba(181,  96, 122, 0.06); /* soft rose */
+  /* Soft, warm atmospheric gradients (dawn sky).
+     Opacities calibrated to read on parchment — the dark-mode values
+     (0.08/0.06) were tuned against near-black and disappear here. */
+  --album-atmospheric-1:  rgba(200, 147, 90, 0.42);  /* warm amber wash */
+  --album-atmospheric-2:  rgba(181,  96, 122, 0.28); /* soft rose */
   --album-atmospheric-center-1: rgba(247, 241, 226, 1);
-  --album-atmospheric-center-2: rgba(242, 235, 220, 1);
+  --album-atmospheric-center-2: rgba(232, 220, 196, 1);  /* deeper parchment edge */
 }
 
 /* ────────────────────────────────────────────────────────────────────────── */
