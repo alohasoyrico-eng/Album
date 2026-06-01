@@ -323,6 +323,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => cancelAnimationFrame(raf);
   }, [hoveredNode, selectedNode]);
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
+  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const hasFittedRef = useRef(false);
   useEffect(() => {
     if (!svgRef.current) return;
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -330,8 +332,34 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       .on("zoom", (event) => {
         setTransform({ x: event.transform.x, y: event.transform.y, k: event.transform.k });
       });
+    zoomBehaviorRef.current = zoom;
     d3.select(svgRef.current).call(zoom);
   }, [dimensions]);
+  // Initial "fit to viewport" — when both layout and dimensions are known,
+  // compute the transform that scales the canonical 1920×1080 world to fit
+  // entirely inside the actual viewport, centered. This eliminates the
+  // empty band that appeared at the bottom (or right) when the viewport
+  // didn't match the canonical aspect ratio.
+  //
+  // The fit is applied via d3-zoom.transform so the user can still pan/zoom
+  // from this starting position normally. Runs once per layout, not on
+  // every resize — re-fitting on resize would yank the camera away from
+  // wherever the user had explored to.
+  useEffect(() => {
+    if (hasFittedRef.current) return;
+    if (!layout || !dimensions.w || !dimensions.h) return;
+    if (!svgRef.current || !zoomBehaviorRef.current) return;
+    const W = layout.viewBox.w;
+    const H = layout.viewBox.h;
+    const fit = Math.min(dimensions.w / W, dimensions.h / H);
+    const tx = (dimensions.w - W * fit) / 2;
+    const ty = (dimensions.h - H * fit) / 2;
+    d3.select(svgRef.current).call(
+      zoomBehaviorRef.current.transform,
+      d3.zoomIdentity.translate(tx, ty).scale(fit),
+    );
+    hasFittedRef.current = true;
+  }, [layout, dimensions.w, dimensions.h]);
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
@@ -663,7 +691,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return b.strength - a.strength;
   });
   return (
-    <div className="relative w-full h-full select-none overflow-hidden">
+    <div className="album-map-enter relative w-full h-full select-none overflow-hidden">
       {/* Atmospheric field — sits behind the map, reacts to active emotion */}
       <AtmosphericField
         hoveredNodeId={hoveredNode}
@@ -1096,8 +1124,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
           })}
         </div>
       </div>
-      {/* Tribe filters — 22 tribes, compact column with hover-expand labels */}
-      <div className="absolute top-20 left-4 z-10 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-4">
+      {/* Tribe filters — 22 tribes, compact column with hover-expand labels.
+          Glass background so the canvas nodes painted underneath don't bleed
+          through the text. */}
+      <div className="glass absolute top-20 left-4 z-10 max-h-[calc(100vh-120px)] overflow-y-auto rounded-xl py-3 pl-3 pr-2 pb-4">
         <p
           className="text-[0.55rem] text-ink-faint mb-2 pl-1"
           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
