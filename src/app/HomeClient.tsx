@@ -40,7 +40,13 @@ export function HomeClient({ mapLayout }: Props) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const suggestions = useMemo<RotatingSuggestion[]>(() => {
+  // Build the deterministic suggestion pool. NO randomness here — server and
+  // client must produce identical output for hydration to succeed.
+  // Previously this useMemo ran Math.random() during render, which produced
+  // a different chip label on the server than on the client → React error
+  // #418 (text mismatch) → React threw out the SSR tree and re-rendered
+  // the entire home on the client. THAT was the perceived slowness.
+  const baseSuggestions = useMemo<RotatingSuggestion[]>(() => {
     const tribeSuggestions: RotatingSuggestion[] = TRIBES.map((t) => ({
       label: t.name, href: `/tribe/${t.id}`, accent: t.color,
     }));
@@ -52,20 +58,26 @@ export function HomeClient({ mapLayout }: Props) {
     const colorSuggestions: RotatingSuggestion[] = COLORS.slice(0, 16).map((c) => ({
       label: c.nameEs, href: `/color/${c.id}`, accent: c.hex,
     }));
-    const pool = [...tribeSuggestions, ...emotionSuggestions, ...colorSuggestions];
+    return [...tribeSuggestions, ...emotionSuggestions, ...colorSuggestions];
+  }, []);
+
+  // Shuffled pool starts === baseSuggestions on the server so the first
+  // client render matches SSR exactly. After mount we shuffle in an effect,
+  // so the chip rotation still feels varied across visits.
+  const [suggestions, setSuggestions] = useState<RotatingSuggestion[]>(baseSuggestions);
+  const [chipIdx, setChipIdx] = useState(0);
+
+  useEffect(() => {
+    // Fisher–Yates after mount, never during render.
+    const pool = [...baseSuggestions];
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    return pool;
-  }, []);
-
-  const [chipIdx, setChipIdx] = useState(0);
-
-  useEffect(() => {
+    setSuggestions(pool);
     detectReturnVisit();
     trackEvent("map_navigation_started", { entry: "home" });
-  }, []);
+  }, [baseSuggestions]);
 
   useEffect(() => {
     const t = setInterval(() => setChipIdx((i) => (i + 1) % suggestions.length), 2400);
