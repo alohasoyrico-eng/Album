@@ -135,12 +135,21 @@ export function AtmosphericField({ hoveredNodeId, selectedNodeId, width, height,
           <stop offset="100%" stopColor="#fff" stopOpacity={0} />
         </radialGradient>
       </defs>
-      {/* Base ambient wash that slightly warms / cools with the active emotion */}
+      {/* Base ambient wash that slightly warms / cools with the active emotion.
+          Critical: must default to TRANSPARENT — a bare <rect> without fill
+          paints black in SVG, which buries the parchment in light mode and
+          makes ink labels unreadable on top. */}
       <rect
         x={0}
         y={0}
         width={width}
         height={height}
+        fill={
+          activeEmotion
+            ? `rgba(${parseInt(tint.slice(1, 3), 16)},${parseInt(tint.slice(3, 5), 16)},${parseInt(tint.slice(5, 7), 16)},${0.045 + temperatureNorm * 0.025})`
+            : "transparent"
+        }
+        style={{ transition: "fill 1.2s cubic-bezier(0.16, 1, 0.3, 1)" }}
       />
       {/* Radial focus field around the active emotion */}
       {focusGradient && (

@@ -298,19 +298,21 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => { sim.stop(); };
   }, [dimensions]);
   // ─── Personality animation loop (visual layer) ────────────────────────────
+  // Only ticks when there is a pivot (hovered/selected). The drift offsets
+  // are STATIC_OFFSET = {0,0,1,0} for every non-attention node, so ticking
+  // when there's nothing to focus just re-renders identical SVG 6× per
+  // second. With this guard, the map is fully idle at rest — the browser
+  // gets all its compositor time back for scroll, hover, search palette.
   useEffect(() => {
+    if (!hoveredNode && !selectedNode) return;
     let raf: number;
     let last = performance.now();
     let acc = 0;
-    // Drop to ~6fps — re-rendering 1300 SVG nodes at 22fps was the main
-    // cause of map sluggishness. At 6fps the JS-driven drift is still
-    // perceivable while the browser has room to handle clicks, search,
-    // and CSS animations on the compositor thread.
     const FRAME_MS = 1000 / 6;
     const step = (t: number) => {
       acc += t - last;
       last = t;
-      if (acc>= FRAME_MS) {
+      if (acc >= FRAME_MS) {
         acc = 0;
         setAnimTick(Math.floor(t));
       }
@@ -318,7 +320,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [hoveredNode, selectedNode]);
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!svgRef.current) return;
