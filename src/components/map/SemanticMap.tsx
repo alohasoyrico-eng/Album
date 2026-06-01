@@ -465,6 +465,60 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     }
     return m;
   }, [nodes, animTick, pivot, connectedIds, selectedNode, STATIC_OFFSET]);
+  // ─── Quadtree over precomputed positions (Capa B) ─────────────────────────
+  // Built once from the build-time layout, the quadtree lets us cull nodes
+  // outside the visible viewport before paying for ~3 SVG layers × 1300
+  // nodes (deco + hit + label). Typical zoom shows 100-300 nodes — about a
+  // 5-10× cut on render work without changing any visuals.
+  //
+  // d3.quadtree's visit() walks the tree, pruning whole subtrees whose
+  // bounding box doesn't intersect our query AABB. O((output_size + log n))
+  // versus O(n) per render.
+  const nodeQuadtree = useMemo(() => {
+    return d3
+      .quadtree<MapNode>()
+      .x((d) => d.x ?? 0)
+      .y((d) => d.y ?? 0)
+      .addAll(nodes.filter((n) => n.x !== undefined && n.y !== undefined));
+  }, [nodes]);
+  // Visible node ids: query the quadtree for the world-space AABB that
+  // maps to the current viewport (inverse of the d3-zoom transform), with
+  // a generous margin so labels/halos near the edge don't clip in.
+  const visibleNodeIds = useMemo(() => {
+    if (!nodes.length) return null; // null = "render all" (e.g. layout not ready)
+    const margin = 120; // px in world space — accommodates halos + labels
+    const k = transform.k || 1;
+    const x0 = (0 - transform.x) / k - margin;
+    const y0 = (0 - transform.y) / k - margin;
+    const x3 = (dimensions.w - transform.x) / k + margin;
+    const y3 = (dimensions.h - transform.y) / k + margin;
+    const ids = new Set<string>();
+    nodeQuadtree.visit((node, qx0, qy0, qx3, qy3) => {
+      // Prune subtrees outside the AABB.
+      if (qx0 > x3 || qy0 > y3 || qx3 < x0 || qy3 < y0) return true;
+      // Leaf: walk the linked list of points.
+      if (!node.length) {
+        let leaf: { data: MapNode; next?: { data: MapNode; next?: unknown } } | undefined =
+          node as unknown as { data: MapNode; next?: { data: MapNode; next?: unknown } };
+        do {
+          const d = leaf.data;
+          const dx = d.x ?? 0;
+          const dy = d.y ?? 0;
+          if (dx >= x0 && dx <= x3 && dy >= y0 && dy <= y3) ids.add(d.id);
+          leaf = leaf.next as typeof leaf;
+        } while (leaf);
+      }
+      return false;
+    });
+    // Always keep pivot + connected + hovered/selected on stage, even if
+    // they happen to be outside the viewport after a pan — preserves the
+    // "I'm focused on this node" guarantee.
+    if (pivot) ids.add(pivot);
+    if (hoveredNode) ids.add(hoveredNode);
+    if (selectedNode) ids.add(selectedNode);
+    for (const id of connectedIds) ids.add(id);
+    return ids;
+  }, [nodeQuadtree, transform, dimensions, nodes.length, pivot, hoveredNode, selectedNode, connectedIds]);
   // ─── Focus point for atmospheric field ────────────────────────────────────
   const focusPoint = useMemo(() => {
     if (!pivot) return null;
@@ -495,9 +549,19 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       idx,
     };
   };
-  // Resolve link endpoints with personality offsets applied
-  const linkData = links.map((l, idx) => resolveLink(l, idx));
-  const emergentLinkData = emergentLinks.map((l, idx) => resolveLink(l, idx));
+  // Resolve link endpoints with personality offsets applied.
+  // Capa B: cull links whose endpoints are both off-screen — keeps the
+  // links layer proportional to the visible nodes layer.
+  const linkVisible = (sId?: string, tId?: string) => {
+    if (!visibleNodeIds) return true;
+    return (sId && visibleNodeIds.has(sId)) || (tId && visibleNodeIds.has(tId));
+  };
+  const linkData = links
+    .map((l, idx) => resolveLink(l, idx))
+    .filter((l) => linkVisible(l.sId, l.tId));
+  const emergentLinkData = emergentLinks
+    .map((l, idx) => resolveLink(l, idx))
+    .filter((l) => linkVisible(l.sId, l.tId));
   // Sort links so direct ones reveal first, then echoes
   const linksByReveal = [...linkData].sort((a, b) => {
     const aDirect = a.sId === pivot || a.tId === pivot ? 1 : 0;
@@ -678,7 +742,13 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             hit layer above; its label sits in the label layer above that.
           */}
           {(() => {
-            const sortedNodes = [...nodes].sort((a, b) => {
+            // Viewport culling: only render nodes visible in the current
+            // transform (with margin). See `visibleNodeIds` for the AABB
+            // logic. Falls back to "render all" if the quadtree isn't ready.
+            const culled = visibleNodeIds
+              ? nodes.filter((n) => visibleNodeIds.has(n.id))
+              : nodes;
+            const sortedNodes = [...culled].sort((a, b) => {
               const pri = (id: string) => {
                 if (connectedIds.has(id) && id !== pivot) return 3;
                 if (id === pivot) return 2;
