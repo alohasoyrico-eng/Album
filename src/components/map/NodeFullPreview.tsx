@@ -321,10 +321,9 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                           key={e.id}
                           href={`/emotion/${e.id}`}
                           onClick={() => {
-                            // Mark before close so the destination beacon can
-                            // measure full click → mount latency.
                             import("@/lib/perfTrace").then((m) => m.markPerf("emotion-nav-start"));
-                            onClose();
+                            // Don't call onClose() — navigation unmounts this
+                            // component. Closing early flashes the map.
                           }}
                           className="px-3 py-1.5 rounded-full text-sm hover:scale-105 transition-transform"
                           style={{
@@ -348,7 +347,8 @@ export function NodeFullPreview({ nodeId, nodes, onClose }: Props) {
                       if (entity.detailHref?.startsWith("/emotion/")) {
                         import("@/lib/perfTrace").then((m) => m.markPerf("emotion-nav-start"));
                       }
-                      onClose();
+                      // Don't call onClose() — navigation unmounts this
+                      // component. Closing early flashes the map.
                     }}
                     className="inline-flex items-center gap-3 px-6 py-3.5 rounded-full text-sm hover:scale-105 transition-transform"
                     style={{
