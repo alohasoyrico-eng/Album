@@ -368,7 +368,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     // inside the constellation rather than seeing the full circular outline.
     // Only on first mount — not on resize.
     if (!initialZoomApplied.current && dimensions.w && dimensions.h) {
-      const k0 = 1.35;
+      const k0 = 1.8;
       const tx = (dimensions.w - dimensions.w * k0) / 2;
       const ty = (dimensions.h - dimensions.h * k0) / 2;
       sel.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k0));
@@ -418,19 +418,20 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const mappedH = (bbox.yMax - bbox.yMin) * sUniform;
   const offsetX = (dimensions.w - mappedW) / 2;
   const offsetY = (dimensions.h - mappedH) / 2;
-  // World → viewport base position mapping with semantic zoom.
-  // Step 1: map from bbox to viewport with uniform scale + centring.
-  // Step 2: modulate inter-node distances around viewport centre based on
-  //   transform.k — zoom in spreads nodes apart, zoom out compacts them.
-  //   This makes the constellation feel infinite (no hard edge when zooming
-  //   out) and more detailed when zooming in (nodes separate to reveal
-  //   cultural dots between the big emotion circles).
-  //   The spread factor is sqrt(k) instead of k to keep the effect subtle —
-  //   linear k would move nodes too aggressively.
+  // ─── Unified coordinate functions ──────────────────────────────────────────
+  // TWO functions replace the old toVP + entryPos + manual transform:
+  //
+  // toBase(wx, wy) — bbox-norm + semantic spread. Used for the quadtree
+  //   (positions that don't change with geometric zoom or entry animation).
+  //   Hit-testing inverts the geometric transform on the pointer, then queries.
+  //
+  // toScreen(wx, wy) — toBase + entry animation + geometric transform.
+  //   Final pixel coordinates for ALL rendering (canvas, SVG, labels).
+  //   No wrapping <g transform> needed.
   const vcx = dimensions.w / 2;
   const vcy = dimensions.h / 2;
-  const spreadK = Math.sqrt(transform.k);
-  const toVP = useCallback((wx: number, wy: number): { x: number; y: number } => {
+  const spreadK = Math.pow(transform.k, 0.8);
+  const toBase = useCallback((wx: number, wy: number): { x: number; y: number } => {
     const bx = (wx - bbox.xMin) * sUniform + offsetX;
     const by = (wy - bbox.yMin) * sUniform + offsetY;
     return {
@@ -453,19 +454,18 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     let m = 0;
     for (const n of nodes) {
       if (n.x === undefined || n.y === undefined) continue;
-      const vp = toVP(n.x, n.y);
+      const vp = toBase(n.x, n.y);
       const d = Math.hypot(vp.x - cx, vp.y - cy);
       if (d > m) m = d;
     }
     return m || 1;
-  }, [nodes, toVP, cx, cy, layout]);
-  // Given a node's final position (already scaled by sx/sy), return
-  // the interpolated position based on entryProgress. During the entry
-  // animation, nodes start at viewport centre and fly outward with
-  // elastic easing + per-node stagger (nodes further from centre start
-  // later and arrive later, giving a ripple/bloom effect).
+  }, [nodes, toBase, cx, cy, layout]);
+  // Given a node's final base-space position, return the interpolated
+  // position based on entryProgress. During the entry animation, nodes
+  // start at viewport centre and fly outward with elastic easing +
+  // per-node stagger (nodes further from centre arrive later).
   const entryDone = entryProgress >= 1;
-  const entryPos = useCallback((finalX: number, finalY: number): { x: number; y: number } => {
+  const entryInterp = useCallback((finalX: number, finalY: number): { x: number; y: number } => {
     if (entryDone) return { x: finalX, y: finalY };
     const dist = Math.hypot(finalX - cx, finalY - cy);
     const normDist = dist / maxDist; // 0 = centre, 1 = edge
@@ -478,6 +478,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       y: cy + (finalY - cy) * eased,
     };
   }, [entryDone, entryProgress, cx, cy, maxDist]);
+  // ─── toScreen: the ONE function all renderers call ────────────────────────
+  // Combines: bbox-norm + semantic spread + entry animation + geometric zoom.
+  // Returns final pixel coordinates — no wrapping transform needed.
+  const toScreen = useCallback((wx: number, wy: number): { x: number; y: number } => {
+    const base = toBase(wx, wy);
+    const ep = entryInterp(base.x, base.y);
+    return {
+      x: ep.x * transform.k + transform.x,
+      y: ep.y * transform.k + transform.y,
+    };
+  }, [toBase, entryInterp, transform.k, transform.x, transform.y]);
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
@@ -535,19 +546,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     for (const [clanId, group] of Object.entries(groups)) {
       if (group.length < 2) continue;
       let cx = 0, cy = 0;
-      // Apply viewport scale + entry animation so centroids land where nodes do.
+      // Apply toScreen so centroids land where nodes do (screen-space).
       for (const n of group) {
-        const vp = toVP(n.x!, n.y!);
-        const ep = entryPos(vp.x, vp.y);
-        cx += ep.x; cy += ep.y;
+        const sp = toScreen(n.x!, n.y!);
+        cx += sp.x; cy += sp.y;
       }
       cx /= group.length; cy /= group.length;
       // Approximate radius: distance to farthest member
       let maxDist = 0;
       for (const n of group) {
-        const vp = toVP(n.x!, n.y!);
-        const ep = entryPos(vp.x, vp.y);
-        const d = Math.hypot(ep.x - cx, ep.y - cy);
+        const sp = toScreen(n.x!, n.y!);
+        const d = Math.hypot(sp.x - cx, sp.y - cy);
         if (d > maxDist) maxDist = d;
       }
       centroids.push({
@@ -556,11 +565,11 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         tribalColor: group[0].tribalColor ?? group[0].color ?? "#888",
         x: cx,
         y: cy,
-        size: Math.max(28, maxDist + 22),
+        size: Math.max(28 * transform.k, maxDist + 22),
       });
     }
     return centroids;
-  }, [nodes, toVP, entryPos]);
+  }, [nodes, toScreen, transform.k]);
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -644,13 +653,16 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   // Quadtree accessors apply the viewport scale so all queries (visible AABB,
   // pointer hit-tests) work in viewport coordinates — same space that pointer
   // events and the d3-zoom transform operate in.
+  // Quadtree stores positions in "base" space (bbox-norm + semantic spread,
+  // but NO geometric transform and NO entry animation). The hit-test handler
+  // inverts the geometric transform on the pointer, then queries.
   const nodeQuadtree = useMemo(() => {
     return d3
       .quadtree<MapNode>()
-      .x((d) => toVP(d.x ?? 0, d.y ?? 0).x)
-      .y((d) => toVP(d.x ?? 0, d.y ?? 0).y)
+      .x((d) => toBase(d.x ?? 0, d.y ?? 0).x)
+      .y((d) => toBase(d.x ?? 0, d.y ?? 0).y)
       .addAll(nodes.filter((n) => n.x !== undefined && n.y !== undefined));
-  }, [nodes, toVP]);
+  }, [nodes, toBase]);
   // Visible node ids: query the quadtree for the world-space AABB that
   // maps to the current viewport (inverse of the d3-zoom transform), with
   // a generous margin so labels/halos near the edge don't clip in.
@@ -672,7 +684,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
           node as unknown as { data: MapNode; next?: { data: MapNode; next?: unknown } };
         do {
           const d = leaf.data;
-          const { x: dx, y: dy } = toVP(d.x ?? 0, d.y ?? 0);
+          const { x: dx, y: dy } = toBase(d.x ?? 0, d.y ?? 0);
           if (dx >= x0 && dx <= x3 && dy >= y0 && dy <= y3) ids.add(d.id);
           leaf = leaf.next as typeof leaf;
         } while (leaf);
@@ -687,18 +699,18 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     if (selectedNode) ids.add(selectedNode);
     for (const id of connectedIds) ids.add(id);
     return ids;
-  }, [nodeQuadtree, transform, dimensions, nodes.length, pivot, hoveredNode, selectedNode, connectedIds]);
+  }, [nodeQuadtree, toBase, transform, dimensions, nodes.length, pivot, hoveredNode, selectedNode, connectedIds]);
   // ─── Focus point for atmospheric field ────────────────────────────────────
   const focusPoint = useMemo(() => {
     if (!pivot) return null;
     const n = nodes.find((x) => x.id === pivot);
     if (!n || !n.x || !n.y) return null;
     const off = nodeOffsets.get(n.id);
-    const vp = toVP(n.x, n.y);
-    const x = (vp.x + (off?.dx ?? 0)) * transform.k + transform.x;
-    const y = (vp.y + (off?.dy ?? 0)) * transform.k + transform.y;
+    const sp = toScreen(n.x, n.y);
+    const x = sp.x + (off?.dx ?? 0) * transform.k;
+    const y = sp.y + (off?.dy ?? 0) * transform.k;
     return { x, y };
-  }, [pivot, nodes, nodeOffsets, transform, toVP]);
+  }, [pivot, nodes, nodeOffsets, transform, toScreen]);
   // ─── Canvas paint: all AMBIENT nodes in one pass ──────────────────────────
   // Replaces 3 SVG layers (deco/hit/labels) × ~1300 nodes ≈ 4000 elements
   // with a single canvas paint of a few thousand 2D ops. Repaints only when
@@ -746,45 +758,34 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         : 0.12;
       if (opacity < 0.04) continue; // imperceptible — skip the paint
       const fillColor = node.color ?? "#888";
-      // Scaled position — every node is mapped into viewport space,
-      // then interpolated through the entry animation if still running.
-      const vp = toVP(node.x, node.y);
-      const { x: px, y: py } = entryPos(vp.x, vp.y);
+      // Final screen position via toScreen (bbox-norm + spread + entry + zoom).
+      const { x: px, y: py } = toScreen(node.x, node.y);
+      const sr = r * transform.k; // scale radius with zoom
+      // Skip if entirely off-screen (GPU would clip anyway, but saves draw calls)
+      if (px + sr < 0 || px - sr > W || py + sr < 0 || py - sr > H) continue;
       // Body fill (cultural & emotion, not color)
       if (!isColor) {
         ctx.beginPath();
-        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.arc(px, py, sr, 0, Math.PI * 2);
         ctx.fillStyle = fillColor;
         ctx.globalAlpha = opacity * (isEmotion ? 1 : 0.65);
         ctx.fill();
       }
       // Body stroke
       ctx.beginPath();
-      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.arc(px, py, sr, 0, Math.PI * 2);
       ctx.strokeStyle = fillColor;
-      ctx.lineWidth = isEmotion ? 1.2 : 0.6;
+      ctx.lineWidth = (isEmotion ? 1.2 : 0.6) * transform.k;
       ctx.globalAlpha = opacity * (isEmotion ? 0.95 : 0.55);
       ctx.stroke();
-      // Emotion-only label (canvas can't reliably render Material Symbols
-      // ligatures, so we drop glyphs for cultural nodes — they were already
-      // invisible at rest anyway given the 0 label-opacity rule for non-
-      // emotion types).
-      if (isEmotion && opacity >= 0.3) {
-        ctx.fillStyle = inkColor;
-        ctx.globalAlpha = 0.7 * opacity;
-        ctx.font = '9px "Space Grotesk", system-ui, sans-serif';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(node.label, px, py + r + 6);
-      }
-      // Cultural-node muted label when pivot connection lights them up
-      // (matches the SVG fillOpacity = isPivotConn && pivot ? 0.9 rule).
-      // Ambient nodes are by definition NOT connected to pivot, so this
-      // branch is unreachable here — left for symmetry.
-      void inkMuted;
+      // Labels removed from canvas — canvas text is rasterised at a fixed
+      // DPR and then CSS-scaled by transform.k, which produces visible
+      // blur at any zoom above 1×. Emotion labels for ambient nodes are
+      // rendered in the SVG label layer below (vector, always crisp).
+      void inkColor; void inkMuted;
     }
     ctx.globalAlpha = 1;
-  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, toVP, dimensions.w, dimensions.h, entryPos]);
+  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, toScreen, dimensions.w, dimensions.h, transform]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -794,35 +795,29 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const t = typeof l.target === "object" ? (l.target as MapNode) : nodes.find((n) => n.id === tId);
     const sOff = sId ? nodeOffsets.get(sId) : undefined;
     const tOff = tId ? nodeOffsets.get(tId) : undefined;
-    // Endpoints scaled into viewport space + entry animation.
-    const sVp = toVP(s?.x ?? 0, s?.y ?? 0);
-    const tVp = toVP(t?.x ?? 0, t?.y ?? 0);
-    const sEp = entryPos(sVp.x, sVp.y);
-    const tEp = entryPos(tVp.x, tVp.y);
+    // Endpoints in final screen-space via toScreen.
+    const sSp = toScreen(s?.x ?? 0, s?.y ?? 0);
+    const tSp = toScreen(t?.x ?? 0, t?.y ?? 0);
     return {
       ...l,
       sId,
       tId,
-      sx: sEp.x + (sOff?.dx ?? 0),
-      sy: sEp.y + (sOff?.dy ?? 0),
-      tx: tEp.x + (tOff?.dx ?? 0),
-      ty: tEp.y + (tOff?.dy ?? 0),
+      sx: sSp.x + (sOff?.dx ?? 0) * transform.k,
+      sy: sSp.y + (sOff?.dy ?? 0) * transform.k,
+      tx: tSp.x + (tOff?.dx ?? 0) * transform.k,
+      ty: tSp.y + (tOff?.dy ?? 0) * transform.k,
       idx,
     };
   };
   // Resolve link endpoints with personality offsets applied.
   // Capa B: cull links whose endpoints are both off-screen — keeps the
   // links layer proportional to the visible nodes layer.
-  const linkVisible = (sId?: string, tId?: string) => {
-    if (!visibleNodeIds) return true;
-    return (sId && visibleNodeIds.has(sId)) || (tId && visibleNodeIds.has(tId));
-  };
-  const linkData = links
-    .map((l, idx) => resolveLink(l, idx))
-    .filter((l) => linkVisible(l.sId, l.tId));
-  const emergentLinkData = emergentLinks
-    .map((l, idx) => resolveLink(l, idx))
-    .filter((l) => linkVisible(l.sId, l.tId));
+  // visibleNodeIds culling disabled — with semantic zoom the spread
+  // pushes edge nodes outside the AABB calculation, causing them to
+  // vanish. Canvas paints ~1300 arcs in one pass (GPU clips off-screen
+  // ones for free), so the culling wasn't buying much anyway.
+  const linkData = links.map((l, idx) => resolveLink(l, idx));
+  const emergentLinkData = emergentLinks.map((l, idx) => resolveLink(l, idx));
   // Sort links so direct ones reveal first, then echoes
   const linksByReveal = [...linkData].sort((a, b) => {
     const aDirect = a.sId === pivot || a.tId === pivot ? 1 : 0;
@@ -840,22 +835,15 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         height={dimensions.h}
         focusPoint={focusPoint}
       />
-      {/* Canvas: paints all AMBIENT nodes (everything NOT in the attention
-          set). Sized to the actual viewport so the map fills the user's
-          window with no letterboxing. Node positions are pre-scaled by
-          sx/sy in the paint loop. The wrapper applies the d3-zoom transform
-          via CSS so pan/zoom never trigger a repaint. */}
+      {/* Canvas: paints all AMBIENT nodes in final screen coordinates.
+          No CSS transform — the geometric zoom + semantic spread are
+          applied per-node in the paint loop. This avoids clipping nodes
+          pushed outside the canvas bounds by semantic zoom, and keeps
+          circles crisp at any zoom level (no CSS magnification). */}
       {layout && dimensions.w > 0 && (
         <div
           aria-hidden
           className="absolute top-0 left-0 pointer-events-none"
-          style={{
-            width: dimensions.w,
-            height: dimensions.h,
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
-            transformOrigin: "0 0",
-            willChange: "transform",
-          }}
         >
           <canvas ref={canvasRef} style={{ display: "block" }} />
         </div>
@@ -920,7 +908,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             </feMerge>
           </filter>
         </defs>
-        <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
+        <g>
           {/* Clan labels — float at each clan's centroid, faint by default,
               emphasized when a member is hovered. Sits behind links/nodes. */}
           <g className="clan-labels">
@@ -939,9 +927,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     style={{ transition: "fill-opacity 0.5s ease" }}
                   />
                   <text
-                    y={-c.size - 6}
+                    y={-c.size - 6 * transform.k}
                     textAnchor="middle"
-                    fontSize={isActive ? 10 : 8.5}
+                    fontSize={(isActive ? 10 : 8.5) * transform.k}
                     fill={c.tribalColor}
                     fillOpacity={isActive ? 0.88 : pivot ? 0.18 : 0.38}
                     style={{
@@ -974,9 +962,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     x2={link.tx}
                     y2={link.ty}
                     stroke="#4A9AA0"
-                    strokeWidth={Math.max(0.8, (link.strength - 0.7) * 6)}
+                    strokeWidth={Math.max(0.8, (link.strength - 0.7) * 6) * transform.k}
                     strokeOpacity={0.7}
-                    strokeDasharray="3 4"
+                    strokeDasharray={`${3 * transform.k} ${4 * transform.k}`}
                   />
                 ))}
             </g>
@@ -1013,9 +1001,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     : link.resonanceType === "sensory" ? "#5A9AB0"
                     : "#6A6A8A"
                   }
-                  strokeWidth={link.strength * (isDirect ? 1.8 : 1.4)}
+                  strokeWidth={link.strength * (isDirect ? 1.8 : 1.4) * transform.k}
                   strokeOpacity={finalOpacity}
-                  strokeDasharray={(link.ambiguity ?? 0)> 0.3 ? "4 6" : undefined}
+                  strokeDasharray={(link.ambiguity ?? 0)> 0.3 ? `${4 * transform.k} ${6 * transform.k}` : undefined}
                 />
               );
             })}
@@ -1083,14 +1071,13 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               .map((node) => {
                 if (!node.x || !node.y) return null;
                 const off = nodeOffsets.get(node.id) ?? { dx: 0, dy: 0, scale: 1, glow: 0 };
-                // Position scaled into viewport space then interpolated through
-                // the entry animation. Radius stays in px so circles remain
-                // circular regardless of sx vs sy.
-                const vp = toVP(node.x, node.y);
-                const ep = entryPos(vp.x, vp.y);
-                const x = ep.x + off.dx;
-                const y = ep.y + off.dy;
-                const r = nodeRadius(node) * off.scale;
+                // Position in final screen-space via toScreen. Personality
+                // offsets and radii scale with zoom since we're no longer
+                // inside a <g scale(k)>.
+                const sp = toScreen(node.x, node.y);
+                const x = sp.x + off.dx * transform.k;
+                const y = sp.y + off.dy * transform.k;
+                const r = nodeRadius(node) * off.scale * transform.k;
                 const filtered = isNodeFiltered(node);
                 const isHovered = node.id === hoveredNode;
                 const isSelected = node.id === selectedNode;
@@ -1123,7 +1110,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     <g key={node.id} transform={`translate(${x},${y})`}
                        style={{ opacity, transition: "opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                       {node.type === "color" && (
-                        <circle r={r + 1.5} fill={node.color} fillOpacity={isHovered ? 0.9 : 0.55} />
+                        <circle r={r + 1.5 * transform.k} fill={node.color} fillOpacity={isHovered ? 0.9 : 0.55} />
                       )}
                       {node.type === "emotion" && (() => {
                         const pat = emotionMotion(node.id);
@@ -1132,7 +1119,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                         return (
                           <>
                             <circle
-                              r={r + 22 + off.glow * 10}
+                              r={r + (22 + off.glow * 10) * transform.k}
                               fill={node.color}
                               fillOpacity={isHovered ? 0.22 : 0.10 + off.glow * 0.08}
                               style={pivot && (isPivotConn || isClanMate) ? {
@@ -1145,8 +1132,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                               } : { filter: tribeGlow, transition: "fill-opacity 0.4s ease" }}
                             />
                             {(isHovered || isSelected) && (
-                              <circle r={r + 18} fill="none" stroke={node.color}
-                                strokeWidth={0.8} strokeOpacity={0.55}
+                              <circle r={r + 18 * transform.k} fill="none" stroke={node.color}
+                                strokeWidth={0.8 * transform.k} strokeOpacity={0.55}
                                 style={{ animation: "bloom 2.4s ease-in-out infinite" }} />
                             )}
                           </>
@@ -1161,7 +1148,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                           : 0.65
                         }
                         stroke={node.color}
-                        strokeWidth={node.type === "emotion" ? 1.2 : 0.6}
+                        strokeWidth={(node.type === "emotion" ? 1.2 : 0.6) * transform.k}
                         strokeOpacity={isHovered ? 1 : node.type === "emotion" ? 0.95 : 0.55}
                         style={{
                           filter: node.type === "emotion" ? tribeGlow
@@ -1169,8 +1156,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                         }}
                       />
                       {node.type === "music" && (
-                        <circle r={r + 3 + off.glow * 3} fill="none" stroke={node.color}
-                          strokeWidth={0.4} strokeOpacity={0.3 + off.glow * 0.4} />
+                        <circle r={r + (3 + off.glow * 3) * transform.k} fill="none" stroke={node.color}
+                          strokeWidth={0.4 * transform.k} strokeOpacity={0.3 + off.glow * 0.4} />
                       )}
                       {GLYPH[node.type] && (
                         <text
@@ -1198,9 +1185,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     <text
                       key={node.id}
                       x={x}
-                      y={y + r + 14}
+                      y={y + r + 14 * transform.k}
                       textAnchor="middle"
-                      fontSize={node.type === "emotion" ? 9 : (isHovered ? 9 : 7.5)}
+                      fontSize={(node.type === "emotion" ? 9 : (isHovered ? 9 : 7.5)) * transform.k}
                       fill={node.type === "emotion" ? "var(--album-ink)" : "var(--album-ink-muted)"}
                       fillOpacity={
                         // Labels always show when the node itself is the
@@ -1227,6 +1214,43 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               </>
             );
           })()}
+          {/* ─── Layer 6: Ambient emotion labels (in main SVG, screen-space) ── */}
+          <g className="ambient-labels" pointerEvents="none">
+            {nodes.map((node) => {
+              if (node.type !== "emotion") return null;
+              if (!node.x || !node.y) return null;
+              if (attentionSet.has(node.id)) return null;
+              const filtered = isNodeFiltered(node);
+              const isClanMate = pivot ? clanMateIds.has(node.id) : false;
+              const isEchoConn = pivot ? echoIds.has(node.id) : false;
+              const opacity = !filtered ? 0.06
+                : !pivot ? 1
+                : isClanMate ? 0.7
+                : isEchoConn ? 0.45
+                : 0.12;
+              if (opacity < 0.3) return null;
+              const sp = toScreen(node.x, node.y);
+              const r = nodeRadius(node) * transform.k;
+              return (
+                <text
+                  key={node.id}
+                  x={sp.x}
+                  y={sp.y + r + 14 * transform.k}
+                  textAnchor="middle"
+                  fontSize={9 * transform.k}
+                  fill="var(--album-ink)"
+                  fillOpacity={0.7 * opacity}
+                  style={{
+                    fontFamily: "var(--font-technical)",
+                    letterSpacing: "0.04em",
+                    userSelect: "none",
+                  }}
+                >
+                  {node.label}
+                </text>
+              );
+            })}
+          </g>
         </g>
       </svg>
       {/* Full-screen card painted with the node's colour. Replaces the
@@ -1306,9 +1330,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             sel.transition().duration(500).call(
               zoomRef.current.transform,
               d3.zoomIdentity.translate(
-                (dimensions.w - dimensions.w * 1.35) / 2,
-                (dimensions.h - dimensions.h * 1.35) / 2,
-              ).scale(1.35),
+                (dimensions.w - dimensions.w * 1.8) / 2,
+                (dimensions.h - dimensions.h * 1.8) / 2,
+              ).scale(1.8),
             );
           }}
           className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
