@@ -7,21 +7,6 @@ import type { Dance } from "@/types";
 
 const _DANCES_EXTENDED_RAW: Dance[] = [
   {
-    id: "flamenco-solea",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Bailando_Cumbia.jpg/330px-Bailando_Cumbia.jpg",
-    title: "Soleá",
-    choreographer: "Tradición",
-    year: "trad.",
-    tradition: "Flamenco",
-    culture: "Gitano-andaluza",
-    emotionResonance: [],
-    colorResonance: [],
-    atmosphereTags: ["andaluza", "duende", "doloroso", "compás 12", "íntimo"],
-    resonance: { energy: 72, temperature: 65, tension: 88, density: 78, movement: 82, temporality: 75, humanity: 92, clarity: 38, intimacy: 88, control: 35 },
-    description: "El palo más solemne del flamenco. Soleá = soledad. Doce tiempos donde el cuerpo se rompe sin gritar.",
-    poeticDescription: "El flamenco no baila las penas: las pisa, las traga, las pone debajo del taconeo.",
-  },
-  {
     id: "tango-milonga",
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Festival_mundial_de_Tango_en_Buenos_Aires%2C_Argentina.jpg/330px-Festival_mundial_de_Tango_en_Buenos_Aires%2C_Argentina.jpg",
     title: "Tango Milonguero",
