@@ -368,7 +368,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     // inside the constellation rather than seeing the full circular outline.
     // Only on first mount — not on resize.
     if (!initialZoomApplied.current && dimensions.w && dimensions.h) {
-      const k0 = 1.8;
+      const k0 = 1.25;
       const tx = (dimensions.w - dimensions.w * k0) / 2;
       const ty = (dimensions.h - dimensions.h * k0) / 2;
       sel.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k0));
@@ -430,7 +430,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   //   No wrapping <g transform> needed.
   const vcx = dimensions.w / 2;
   const vcy = dimensions.h / 2;
-  const spreadK = Math.pow(transform.k, 0.8);
+  const spreadK = Math.pow(transform.k, 0.4);
   const toBase = useCallback((wx: number, wy: number): { x: number; y: number } => {
     const bx = (wx - bbox.xMin) * sUniform + offsetX;
     const by = (wy - bbox.yMin) * sUniform + offsetY;
@@ -1330,9 +1330,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             sel.transition().duration(500).call(
               zoomRef.current.transform,
               d3.zoomIdentity.translate(
-                (dimensions.w - dimensions.w * 1.8) / 2,
-                (dimensions.h - dimensions.h * 1.8) / 2,
-              ).scale(1.8),
+                (dimensions.w - dimensions.w * 1.25) / 2,
+                (dimensions.h - dimensions.h * 1.25) / 2,
+              ).scale(1.25),
             );
           }}
           className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
