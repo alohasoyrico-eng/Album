@@ -235,6 +235,42 @@ const GLYPH: Partial<Record<string, string>> = {
   ritual:       ICON.ritual,
   theater:      ICON.theater,
 };
+// ─── Module-level simulation cache ───────────────────────────────────────────
+// Survives component unmount/remount. The simulation runs ONCE per browser
+// session. Returning to the map from a detail page reads cached positions
+// instantly — no re-simulation, no blank screen, no settling animation.
+interface SimCache {
+  nodes: MapNode[];
+  curatedLinks: MapLink[];
+  emergentLinks: MapLink[];
+  settled: boolean;
+  centerW: number;
+  centerH: number;
+}
+let _simCache: SimCache | null = null;
+// Helper: update SVG element positions directly via D3 selection,
+// bypassing React reconciliation. Used during the settling rAF loop
+// so the organic settling animation is visible without paying for
+// ~13 full React re-renders (each reconciling ~3900 SVG elements).
+function updateDOMPositions(svgEl: SVGSVGElement, rawNodes: MapNode[]) {
+  const sel = d3.select(svgEl);
+  for (const n of rawNodes) {
+    if (n.x === undefined || n.y === undefined) continue;
+    // Deco + attention groups
+    sel.selectAll<SVGGElement, unknown>(`[data-nid="${n.id}"]`)
+      .attr("transform", `translate(${n.x},${n.y})`);
+    // Ambient circles (no <g> wrapper)
+    sel.selectAll<SVGCircleElement, unknown>(`[data-nid-dot="${n.id}"]`)
+      .attr("cx", n.x).attr("cy", n.y);
+    // Hit targets
+    sel.selectAll<SVGCircleElement, unknown>(`[data-nid-hit="${n.id}"]`)
+      .attr("cx", n.x).attr("cy", n.y);
+    // Labels
+    sel.selectAll<SVGTextElement, unknown>(`[data-nid-label="${n.id}"]`)
+      .attr("x", n.x)
+      .attr("y", n.y + nodeRadius(n) + 14);
+  }
+}
 // ─── Component ────────────────────────────────────────────────────────────────
 export function SemanticMap() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -258,13 +294,31 @@ export function SemanticMap() {
     return () => window.removeEventListener("resize", update);
   }, []);
   // ─── D3 force simulation (structural layer) ───────────────────────────────
-  // The simulation uses CURATED links for structural pull (these are the
-  // canonical Marina-era relationships). EMERGENT links are rendered on top
-  // as the resonance-engine's inferred neighborhood.
-  const simRanRef = useRef(false);
+  // Three paths:
+  //   A. Cache hit (settled): instant render from module-level cache
+  //   B. Cache miss (first mount): run sim, settle via D3 direct DOM updates
+  //   C. Viewport resize after settling: translate cached positions
   useEffect(() => {
-    if (!dimensions.w || simRanRef.current) return;
-    simRanRef.current = true;
+    if (!dimensions.w) return;
+    // ── Path A: cache hit ─────────────────────────────────────────────────
+    if (_simCache?.settled) {
+      // Viewport may have changed since cache was built. Translate positions.
+      const dx = dimensions.w / 2 - _simCache.centerW / 2;
+      const dy = dimensions.h / 2 - _simCache.centerH / 2;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+        for (const n of _simCache.nodes) {
+          if (n.x !== undefined) n.x += dx;
+          if (n.y !== undefined) n.y += dy;
+        }
+        _simCache.centerW = dimensions.w;
+        _simCache.centerH = dimensions.h;
+      }
+      setNodes([..._simCache.nodes]);
+      setLinks([..._simCache.curatedLinks]);
+      setEmergentLinks([..._simCache.emergentLinks]);
+      return;
+    }
+    // ── Path B: cache miss — run simulation ────────────────────────────────
     const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
     const sim = d3
       .forceSimulation<MapNode, MapLink>(rawNodes)
@@ -280,34 +334,46 @@ export function SemanticMap() {
       .force("resonance-gravity", resonanceGravityForce(rawNodes))
       .alphaDecay(0.015)
       .velocityDecay(0.35)
-      .stop();
-    // Progressive simulation: run 40 ticks immediately for a rough layout
-    // (nodes visibly separated but not fully settled), commit so the user
-    // sees something within ~20ms. Then run remaining ticks in batches
-    // via rAF so the browser stays responsive.
+      .stop(); // manual tick control
+    // 40 sync ticks → rough layout visible in ~20ms
     for (let i = 0; i < 40; i++) sim.tick();
+    // Store in cache immediately (positions will be refined in-place)
+    _simCache = {
+      nodes: rawNodes,
+      curatedLinks: rawCurated,
+      emergentLinks: rawEmergent,
+      settled: false,
+      centerW: dimensions.w,
+      centerH: dimensions.h,
+    };
+    // Commit rough layout to React — one render, nodes appear
+    simulationRef.current = sim;
     setNodes([...rawNodes]);
     setLinks([...rawCurated]);
     setEmergentLinks(rawEmergent as MapLink[]);
-    simulationRef.current = sim;
-    // Refine in background: 20 ticks per frame until alpha decays
+    // Refine via D3 direct DOM updates (no React re-renders).
+    // The settling animation is visible because D3 touches the real DOM.
     let tickCount = 40;
+    let cancelled = false;
     const refine = () => {
-      if (sim.alpha() < sim.alphaMin()) return;
-      for (let i = 0; i < 20; i++) { sim.tick(); tickCount++; }
-      if (tickCount < 300) {
-        setNodes([...rawNodes]);
-        requestAnimationFrame(refine);
-      } else {
-        setNodes([...rawNodes]); // final commit
+      if (cancelled || sim.alpha() < sim.alphaMin()) {
+        // Settling complete — sync React state, mark cache as settled
+        if (!cancelled) {
+          _simCache!.settled = true;
+          setNodes([...rawNodes]); // final React commit
+        }
+        return;
       }
+      for (let i = 0; i < 20 && tickCount < 300; i++, tickCount++) sim.tick();
+      if (svgRef.current) updateDOMPositions(svgRef.current, rawNodes);
+      requestAnimationFrame(refine);
     };
     requestAnimationFrame(refine);
+    return () => { cancelled = true; sim.stop(); };
   }, [dimensions]);
   // ─── Personality animation loop (visual layer) ────────────────────────────
   // Only ticks when there is a pivot (hovered/selected). Without a pivot,
-  // all offsets are STATIC_OFFSET = {0,0,1,0} — ticking produces identical
-  // output and wastes the main thread. The map is fully idle at rest.
+  // all offsets are STATIC_OFFSET — ticking produces identical output.
   useEffect(() => {
     if (!hoveredNode && !selectedNode) return;
     let raf: number;
@@ -685,29 +751,15 @@ export function SemanticMap() {
             hit layer above; its label sits in the label layer above that.
           */}
           {(() => {
-            const sortedNodes = [...nodes].sort((a, b) => {
-              const pri = (id: string) => {
-                if (connectedIds.has(id) && id !== pivot) return 3;
-                if (id === pivot) return 2;
-                return 0;
-              };
-              return pri(a.id) - pri(b.id);
-            });
+            // ── Compute per-node render data ──────────────────────────────
             type NodeRender = {
-              node: MapNode;
-              x: number;
-              y: number;
-              r: number;
-              opacity: number;
-              isHovered: boolean;
-              isSelected: boolean;
-              isPivotConn: boolean;
-              isClanMate: boolean;
+              node: MapNode; x: number; y: number; r: number;
+              opacity: number; isHovered: boolean; isSelected: boolean;
+              isPivotConn: boolean; isClanMate: boolean;
               off: ReturnType<typeof personalityOffset>;
-              tribeGlow: string;
-              hitR: number;
+              tribeGlow: string; hitR: number; isAttention: boolean;
             };
-            const rendered: NodeRender[] = sortedNodes
+            const rendered: NodeRender[] = nodes
               .map((node) => {
                 if (!node.x || !node.y) return null;
                 const off = nodeOffsets.get(node.id) ?? { dx: 0, dy: 0, scale: 1, glow: 0 };
@@ -728,22 +780,41 @@ export function SemanticMap() {
                   : 0.12;
                 const tribe = node.tribe ? TRIBE_MAP.get(node.tribe) : null;
                 const tribeGlow = tribe ? `url(#glow-${tribe.id})` : `url(#glow-default)`;
-                // Hit-target radius — generous so tiny cultural dots
-                // (r ≈ 4) are easy to grab without being so big that
-                // adjacent nodes' hit areas overlap. Min 16 px for any
-                // node; otherwise r + 18 (body + comfortable margin
-                // including the label area below).
                 const hitR = Math.max(16, r + 18);
+                const isAttention = isHovered || isSelected || (pivot ? connectedIds.has(node.id) : false);
                 return { node, x, y, r, opacity, isHovered, isSelected,
-                         isPivotConn, isClanMate, off, tribeGlow, hitR };
+                         isPivotConn, isClanMate, off, tribeGlow, hitR, isAttention };
               })
               .filter((x): x is NodeRender => x !== null);
+            // Sort: attention nodes render last (on top)
+            rendered.sort((a, b) => {
+              const pri = (r: NodeRender) => r.isAttention ? (r.node.id === pivot ? 2 : 1) : 0;
+              return pri(a) - pri(b);
+            });
+            const ambient = rendered.filter((r) => !r.isAttention);
+            const attention = rendered.filter((r) => r.isAttention);
             return (
               <>
-                {/* ─── Layer 3: Decorations (visual, never clickable) ─── */}
-                <g className="map-deco" pointerEvents="none">
-                  {rendered.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn, isClanMate, off, tribeGlow }) => (
-                    <g key={node.id} transform={`translate(${x},${y})`}
+                {/* ─── Layer 3a: Ambient decorations (minimal SVG) ────── */}
+                <g className="map-deco-ambient" pointerEvents="none">
+                  {ambient.map(({ node, x, y, r, opacity }) => (
+                    <circle
+                      key={node.id}
+                      data-nid-dot={node.id}
+                      cx={x} cy={y} r={r}
+                      fill={node.type === "color" ? "transparent" : (node.color ?? "#888")}
+                      fillOpacity={node.type === "emotion" ? opacity : opacity * 0.65}
+                      stroke={node.color}
+                      strokeWidth={node.type === "emotion" ? 1.2 : 0.6}
+                      strokeOpacity={node.type === "emotion" ? 0.95 * opacity : 0.55 * opacity}
+                      style={{ transition: "fill-opacity 0.5s ease, stroke-opacity 0.5s ease" }}
+                    />
+                  ))}
+                </g>
+                {/* ─── Layer 3b: Attention decorations (rich SVG) ─────── */}
+                <g className="map-deco-attention" pointerEvents="none">
+                  {attention.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn, isClanMate, off, tribeGlow }) => (
+                    <g key={node.id} data-nid={node.id} transform={`translate(${x},${y})`}
                        style={{ opacity, transition: "opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                       {node.type === "color" && (
                         <circle r={r + 1.5} fill={node.color} fillOpacity={isHovered ? 0.9 : 0.55} />
@@ -778,11 +849,7 @@ export function SemanticMap() {
                       <circle
                         r={r}
                         fill={node.type === "color" ? "transparent" : node.color}
-                        fillOpacity={
-                          node.type === "emotion" ? 1
-                          : node.type === "color" ? 0
-                          : 0.65
-                        }
+                        fillOpacity={node.type === "emotion" ? 1 : node.type === "color" ? 0 : 0.65}
                         stroke={node.color}
                         strokeWidth={node.type === "emotion" ? 1.2 : 0.6}
                         strokeOpacity={isHovered ? 1 : node.type === "emotion" ? 0.95 : 0.55}
@@ -796,15 +863,10 @@ export function SemanticMap() {
                           strokeWidth={0.4} strokeOpacity={0.3 + off.glow * 0.4} />
                       )}
                       {GLYPH[node.type] && (
-                        <text
-                          fontFamily={ICON_SVG_FONT}
-                          fontSize={r * 1.1}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          fill={node.color}
-                          fillOpacity={0.85}
-                          style={{ fontFeatureSettings: '"liga"', userSelect: "none" }}
->
+                        <text fontFamily={ICON_SVG_FONT} fontSize={r * 1.1}
+                          textAnchor="middle" dominantBaseline="central"
+                          fill={node.color} fillOpacity={0.85}
+                          style={{ fontFeatureSettings: '"liga"', userSelect: "none" }}>
                           {GLYPH[node.type]}
                         </text>
                       )}
@@ -814,13 +876,12 @@ export function SemanticMap() {
                 {/* ─── Layer 4: Hit targets (THE ONLY clickable layer) ─── */}
                 <g className="map-hits">
                   {rendered.map(({ node, x, y, hitR, opacity }) => (
-                    // Transparent circle sized to the perceived body. Decoupled
-                    // from visual halos, so nothing else in the SVG can shadow it.
                     <circle
                       key={node.id}
+                      data-nid-hit={node.id}
                       cx={x} cy={y} r={hitR}
                       fill="transparent"
-                      style={{ cursor: opacity> 0.3 ? "pointer" : "default" }}
+                      style={{ cursor: opacity > 0.3 ? "pointer" : "default" }}
                       onMouseEnter={() => {
                         setHoveredNode(node.id);
                         trackEvent("node_hovered", { nodeId: node.id, type: node.type });
@@ -830,34 +891,35 @@ export function SemanticMap() {
                     />
                   ))}
                 </g>
-                {/* ─── Layer 5: Labels (above everything, never clickable) ─── */}
+                {/* ─── Layer 5: Labels ─── */}
+                {/* Ambient: only emotion labels when visible (opacity >= 0.7) */}
+                {/* Attention: full label logic */}
                 <g className="map-labels" pointerEvents="none">
-                  {rendered.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn }) => (
-                    <text
-                      key={node.id}
-                      x={x}
-                      y={y + r + 14}
-                      textAnchor="middle"
+                  {ambient.map(({ node, x, y, r, opacity }) => {
+                    if (node.type !== "emotion" || opacity < 0.7) return null;
+                    return (
+                      <text key={node.id} data-nid-label={node.id}
+                        x={x} y={y + r + 14} textAnchor="middle" fontSize={9}
+                        fill="var(--album-ink)" fillOpacity={0.7}
+                        style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.04em", userSelect: "none" }}>
+                        {node.label}
+                      </text>
+                    );
+                  })}
+                  {attention.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn }) => (
+                    <text key={node.id} data-nid-label={node.id}
+                      x={x} y={y + r + 14} textAnchor="middle"
                       fontSize={node.type === "emotion" ? 9 : (isHovered ? 9 : 7.5)}
                       fill={node.type === "emotion" ? "var(--album-ink)" : "var(--album-ink-muted)"}
                       fillOpacity={
-                        // Labels always show when the node itself is the
-                        // direct hover target — regardless of pivot state.
-                        // This makes "I found Renoir, let me grab his label"
-                        // a reliable interaction.
                         isHovered || isSelected ? 1
                         : opacity < 0.3 ? 0
                         : isPivotConn && pivot ? 0.9
                         : node.type === "emotion" ? 0.7
                         : 0
                       }
-                      style={{
-                        fontFamily: "var(--font-technical)",
-                        letterSpacing: "0.04em",
-                        transition: "fill-opacity 0.4s ease",
-                        userSelect: "none",
-                      }}
->
+                      style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.04em",
+                               transition: "fill-opacity 0.4s ease", userSelect: "none" }}>
                       {node.label}
                     </text>
                   ))}
