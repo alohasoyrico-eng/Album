@@ -259,16 +259,30 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
-  // Entry animation: start hidden, flip to visible after first paint so the
-  // CSS transition triggers visibly. requestAnimationFrame ensures the
-  // browser has committed the opacity:0 frame before we toggle.
-  const [mapVisible, setMapVisible] = useState(false);
+  // ─── Entry animation: organic dispersal from center ───────────────────────
+  // Replaces the lost d3-force simulation settling. Nodes start at the
+  // viewport centre and fly to their precomputed positions with elastic
+  // easing and per-node stagger (nodes further from centre arrive later).
+  // Runs for ENTRY_DURATION_MS then stops — zero ongoing cost.
+  //
+  // `entryProgress` goes from 0 (all at centre) to 1 (all at final pos).
+  // While < 1, the canvas paint and SVG render use interpolated positions.
+  const ENTRY_DURATION_MS = 2400;
+  const [entryProgress, setEntryProgress] = useState(layout ? 0 : 1);
+  const entryStartRef = useRef<number | null>(null);
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      setMapVisible(true);
-    });
+    if (!layout || entryProgress >= 1) return;
+    let raf: number;
+    const step = (t: number) => {
+      if (entryStartRef.current === null) entryStartRef.current = t;
+      const elapsed = t - entryStartRef.current;
+      const raw = Math.min(elapsed / ENTRY_DURATION_MS, 1);
+      setEntryProgress(raw);
+      if (raw < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [layout, entryProgress >= 1]); // eslint-disable-line react-hooks/exhaustive-deps
   // ─── Measure container ────────────────────────────────────────────────────
   // `dimensions` starts at the canonical world size (layout.viewBox) so SSR
   // and first hydration render with consistent values. After mount this
@@ -366,6 +380,45 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   // = related") is preserved monotonically.
   const sx = layout && dimensions.w ? dimensions.w / layout.viewBox.w : 1;
   const sy = layout && dimensions.h ? dimensions.h / layout.viewBox.h : 1;
+  // ─── Entry position interpolator ─────────────────────────────────────────
+  // Elastic ease-out: overshoots then settles — feels organic/living.
+  const elasticOut = (t: number): number => {
+    if (t === 0 || t === 1) return t;
+    return Math.pow(2, -10 * t) * Math.sin((t - 0.075) * (2 * Math.PI) / 0.3) + 1;
+  };
+  // Centre of the viewport in viewport-scaled coordinates.
+  const cx = dimensions.w / 2;
+  const cy = dimensions.h / 2;
+  // Max distance from centre (for normalising stagger).
+  const maxDist = useMemo(() => {
+    if (!layout) return 1;
+    let m = 0;
+    for (const n of nodes) {
+      if (n.x === undefined || n.y === undefined) continue;
+      const d = Math.hypot(n.x * sx - cx, n.y * sy - cy);
+      if (d > m) m = d;
+    }
+    return m || 1;
+  }, [nodes, sx, sy, cx, cy, layout]);
+  // Given a node's final position (already scaled by sx/sy), return
+  // the interpolated position based on entryProgress. During the entry
+  // animation, nodes start at viewport centre and fly outward with
+  // elastic easing + per-node stagger (nodes further from centre start
+  // later and arrive later, giving a ripple/bloom effect).
+  const entryDone = entryProgress >= 1;
+  const entryPos = useCallback((finalX: number, finalY: number): { x: number; y: number } => {
+    if (entryDone) return { x: finalX, y: finalY };
+    const dist = Math.hypot(finalX - cx, finalY - cy);
+    const normDist = dist / maxDist; // 0 = centre, 1 = edge
+    // Stagger: centre nodes start immediately, edge nodes delayed by ~30%.
+    const staggerDelay = normDist * 0.3;
+    const localT = Math.max(0, Math.min(1, (entryProgress - staggerDelay) / (1 - staggerDelay)));
+    const eased = elasticOut(localT);
+    return {
+      x: cx + (finalX - cx) * eased,
+      y: cy + (finalY - cy) * eased,
+    };
+  }, [entryDone, entryProgress, cx, cy, maxDist]);
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
@@ -423,13 +476,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     for (const [clanId, group] of Object.entries(groups)) {
       if (group.length < 2) continue;
       let cx = 0, cy = 0;
-      // Apply viewport scale so centroids land where the scaled nodes do.
-      for (const n of group) { cx += n.x! * sx; cy += n.y! * sy; }
+      // Apply viewport scale + entry animation so centroids land where nodes do.
+      for (const n of group) {
+        const ep = entryPos(n.x! * sx, n.y! * sy);
+        cx += ep.x; cy += ep.y;
+      }
       cx /= group.length; cy /= group.length;
       // Approximate radius: distance to farthest member
       let maxDist = 0;
       for (const n of group) {
-        const d = Math.hypot(n.x! * sx - cx, n.y! * sy - cy);
+        const ep = entryPos(n.x! * sx, n.y! * sy);
+        const d = Math.hypot(ep.x - cx, ep.y - cy);
         if (d > maxDist) maxDist = d;
       }
       centroids.push({
@@ -442,7 +499,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       });
     }
     return centroids;
-  }, [nodes, sx, sy]);
+  }, [nodes, sx, sy, entryPos]);
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -628,9 +685,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         : 0.12;
       if (opacity < 0.04) continue; // imperceptible — skip the paint
       const fillColor = node.color ?? "#888";
-      // Scaled position — every node is mapped into viewport space.
-      const px = node.x * sx;
-      const py = node.y * sy;
+      // Scaled position — every node is mapped into viewport space,
+      // then interpolated through the entry animation if still running.
+      const { x: px, y: py } = entryPos(node.x * sx, node.y * sy);
       // Body fill (cultural & emotion, not color)
       if (!isColor) {
         ctx.beginPath();
@@ -665,7 +722,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       void inkMuted;
     }
     ctx.globalAlpha = 1;
-  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, sx, sy, dimensions.w, dimensions.h]);
+  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, sx, sy, dimensions.w, dimensions.h, entryPos]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -675,15 +732,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const t = typeof l.target === "object" ? (l.target as MapNode) : nodes.find((n) => n.id === tId);
     const sOff = sId ? nodeOffsets.get(sId) : undefined;
     const tOff = tId ? nodeOffsets.get(tId) : undefined;
-    // Endpoints scaled into viewport space, same mapping as nodes/quadtree.
+    // Endpoints scaled into viewport space + entry animation.
+    const sEp = entryPos((s?.x ?? 0) * sx, (s?.y ?? 0) * sy);
+    const tEp = entryPos((t?.x ?? 0) * sx, (t?.y ?? 0) * sy);
     return {
       ...l,
       sId,
       tId,
-      sx: (s?.x ?? 0) * sx + (sOff?.dx ?? 0),
-      sy: (s?.y ?? 0) * sy + (sOff?.dy ?? 0),
-      tx: (t?.x ?? 0) * sx + (tOff?.dx ?? 0),
-      ty: (t?.y ?? 0) * sy + (tOff?.dy ?? 0),
+      sx: sEp.x + (sOff?.dx ?? 0),
+      sy: sEp.y + (sOff?.dy ?? 0),
+      tx: tEp.x + (tOff?.dx ?? 0),
+      ty: tEp.y + (tOff?.dy ?? 0),
       idx,
     };
   };
@@ -708,7 +767,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return b.strength - a.strength;
   });
   return (
-    <div className={`album-map-enter${mapVisible ? " album-map-visible" : ""} relative w-full h-full select-none overflow-hidden`}>
+    <div className="relative w-full h-full select-none overflow-hidden">
       {/* Atmospheric field — sits behind the map, reacts to active emotion */}
       <AtmosphericField
         hoveredNodeId={hoveredNode}
@@ -960,10 +1019,12 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               .map((node) => {
                 if (!node.x || !node.y) return null;
                 const off = nodeOffsets.get(node.id) ?? { dx: 0, dy: 0, scale: 1, glow: 0 };
-                // Position scaled into viewport space; radius stays in px so
-                // circles remain circular regardless of sx vs sy.
-                const x = node.x * sx + off.dx;
-                const y = node.y * sy + off.dy;
+                // Position scaled into viewport space then interpolated through
+                // the entry animation. Radius stays in px so circles remain
+                // circular regardless of sx vs sy.
+                const ep = entryPos(node.x * sx, node.y * sy);
+                const x = ep.x + off.dx;
+                const y = ep.y + off.dy;
                 const r = nodeRadius(node) * off.scale;
                 const filtered = isNodeFiltered(node);
                 const isHovered = node.id === hoveredNode;
