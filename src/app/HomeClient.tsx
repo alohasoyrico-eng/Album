@@ -24,7 +24,6 @@ import { EMOTIONS } from "@/data/ontology/emotions";
 import { COLORS } from "@/data/colors/colorResonance";
 import { detectReturnVisit, trackEvent } from "@/lib/analytics";
 import { markPerf } from "@/lib/perfTrace";
-import type { MapLayoutPayload } from "@/lib/server/mapLayout";
 
 interface RotatingSuggestion {
   label: string;
@@ -32,11 +31,7 @@ interface RotatingSuggestion {
   accent: string;
 }
 
-interface Props {
-  mapLayout: MapLayoutPayload;
-}
-
-export function HomeClient({ mapLayout }: Props) {
+export function HomeClient() {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -95,7 +90,7 @@ export function HomeClient({ mapLayout }: Props) {
   return (
     <div className="relative min-h-screen bg-atmospheric overflow-hidden">
       <div className="relative w-full hidden md:block" style={{ height: "100vh" }}>
-        <SemanticMap layout={mapLayout} />
+        <SemanticMap />
       </div>
       <div className="md:hidden">
         <MobileTribesGrid />

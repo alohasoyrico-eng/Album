@@ -212,8 +212,6 @@ function nodeRadius(node: MapNode): number {
     bias = deriveMotion(node.resonance).sizeBias;
   }
   const raw = base * bias * (node.weight ?? 1);
-  // Floor: emotions must be at least 10px radius so they're always
-  // visible and clickable. Cultural nodes at least 3px.
   const r = node.type === "emotion" ? Math.max(10, raw)
     : node.type === "color" ? Math.max(5, raw)
     : Math.max(3, raw);
@@ -238,74 +236,32 @@ const GLYPH: Partial<Record<string, string>> = {
   theater:      ICON.theater,
 };
 // ─── Component ────────────────────────────────────────────────────────────────
-interface SemanticMapProps {
-  /** Layout precomputed at build time by lib/server/mapLayout.ts.
-   *  When provided the client skips its own d3-force simulation. */
-  layout?: import("@/lib/server/mapLayout").MapLayoutPayload;
-}
-
-export function SemanticMap({ layout }: SemanticMapProps = {}) {
+export function SemanticMap() {
   const svgRef = useRef<SVGSVGElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const simulationRef = useRef<d3.Simulation<MapNode, MapLink> | null>(null);
   const router = useRouter();
   const { hoveredNode, selectedNode, activeFilter, activeTribe, setHoveredNode, setSelectedNode } = useMapStore();
-  // When `layout` is provided, dimensions just feed d3-zoom + responsive
-  // overlays. The simulation is skipped entirely.
-  const [dimensions, setDimensions] = useState({
-    w: layout?.viewBox.w ?? 0,
-    h: layout?.viewBox.h ?? 0,
-  });
-  const [nodes, setNodes] = useState<MapNode[]>(layout?.nodes ?? []);
-  const [links, setLinks] = useState<MapLink[]>(layout?.curatedLinks ?? []);
-  const [emergentLinks, setEmergentLinks] = useState<MapLink[]>(layout?.emergentLinks ?? []);
+  const [dimensions, setDimensions] = useState({ w: 0, h: 0 });
+  const [nodes, setNodes] = useState<MapNode[]>([]);
+  const [links, setLinks] = useState<MapLink[]>([]);
+  const [emergentLinks, setEmergentLinks] = useState<MapLink[]>([]);
   /** Which link layer(s) to render: curated (Marina), emergent (vector), or both. */
   const [linkMode, setLinkMode] = useState<"curated" | "emergent" | "both">("both");
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
-  // ─── Entry animation: organic dispersal from center ───────────────────────
-  // Replaces the lost d3-force simulation settling. Nodes start at the
-  // viewport centre and fly to their precomputed positions with elastic
-  // easing and per-node stagger (nodes further from centre arrive later).
-  // Runs for ENTRY_DURATION_MS then stops — zero ongoing cost.
-  //
-  // `entryProgress` goes from 0 (all at centre) to 1 (all at final pos).
-  // While < 1, the canvas paint and SVG render use interpolated positions.
-  const ENTRY_DURATION_MS = 2400;
-  const [entryProgress, setEntryProgress] = useState(layout ? 0 : 1);
-  const entryStartRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!layout || entryProgress >= 1) return;
-    let raf: number;
-    const step = (t: number) => {
-      if (entryStartRef.current === null) entryStartRef.current = t;
-      const elapsed = t - entryStartRef.current;
-      const raw = Math.min(elapsed / ENTRY_DURATION_MS, 1);
-      setEntryProgress(raw);
-      if (raw < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [layout, entryProgress >= 1]); // eslint-disable-line react-hooks/exhaustive-deps
   // ─── Measure container ────────────────────────────────────────────────────
-  // `dimensions` starts at the canonical world size (layout.viewBox) so SSR
-  // and first hydration render with consistent values. After mount this
-  // effect overrides with the real viewport size. `viewportMeasured` is
   useEffect(() => {
-    const update = () => {
-      setDimensions({ w: window.innerWidth, h: window.innerHeight });
-    };
+    const update = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
   // ─── D3 force simulation (structural layer) ───────────────────────────────
-  // Skipped when `layout` is supplied (the build-time precompute path).
-  // Kept as a fallback so existing callers without a layout still render —
-  // they take the old hit on first paint but at least don't crash.
+  // The simulation uses CURATED links for structural pull (these are the
+  // canonical Marina-era relationships). EMERGENT links are rendered on top
+  // as the resonance-engine's inferred neighborhood.
   useEffect(() => {
-    if (layout) return; // precomputed layout already in state; nothing to do.
     if (!dimensions.w) return;
     const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
     const sim = d3
@@ -319,6 +275,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       .force("center", d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.05))
       .force("cluster", clusterForce(rawNodes, dimensions.w, dimensions.h))
       .force("clan", clanForce(rawNodes))
+      // ─── Cultural entities orbit the emotions they actually resonate with
       .force("resonance-gravity", resonanceGravityForce(rawNodes))
       .alphaDecay(0.015)
       .velocityDecay(0.35);
@@ -333,11 +290,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => { sim.stop(); };
   }, [dimensions]);
   // ─── Personality animation loop (visual layer) ────────────────────────────
-  // Only ticks when there is a pivot (hovered/selected). The drift offsets
-  // are STATIC_OFFSET = {0,0,1,0} for every non-attention node, so ticking
-  // when there's nothing to focus just re-renders identical SVG 6× per
-  // second. With this guard, the map is fully idle at rest — the browser
-  // gets all its compositor time back for scroll, hover, search palette.
+  // Only ticks when there is a pivot (hovered/selected). Without a pivot,
+  // all offsets are STATIC_OFFSET = {0,0,1,0} — ticking produces identical
+  // output and wastes the main thread. The map is fully idle at rest.
   useEffect(() => {
     if (!hoveredNode && !selectedNode) return;
     let raf: number;
@@ -357,8 +312,6 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => cancelAnimationFrame(raf);
   }, [hoveredNode, selectedNode]);
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
-  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const initialZoomApplied = useRef(false);
   useEffect(() => {
     if (!svgRef.current) return;
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -366,134 +319,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       .on("zoom", (event) => {
         setTransform({ x: event.transform.x, y: event.transform.y, k: event.transform.k });
       });
-    zoomRef.current = zoom;
-    const sel = d3.select(svgRef.current);
-    sel.call(zoom);
-    // Start zoomed in at 1.35× centred on the viewport so the user lands
-    // inside the constellation rather than seeing the full circular outline.
-    // Only on first mount — not on resize.
-    if (!initialZoomApplied.current && dimensions.w && dimensions.h) {
-      const k0 = 1.25;
-      const tx = (dimensions.w - dimensions.w * k0) / 2;
-      const ty = (dimensions.h - dimensions.h * k0) / 2;
-      sel.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k0));
-      initialZoomApplied.current = true;
-    }
+    d3.select(svgRef.current).call(zoom);
   }, [dimensions]);
-  // ─── World-to-viewport mapping (adaptive layout) ──────────────────────────
-  // The d3-force simulation centred nodes around (960, 540) in a 1920×1080
-  // canonical world, but the actual bounding box of node positions is
-  // smaller — nodes cluster in a region that doesn't fill the canvas. The
-  // naive sx = viewportW/worldW only stretched the coordinate space; the
-  // nodes still occupied their original fraction of it, leaving large
-  // empty regions.
-  //
-  // Fix: compute the ACTUAL bounding box of node positions, add margin,
-  // then map that box to fill the viewport. This guarantees nodes spread
-  // edge-to-edge regardless of how the simulation distributed them.
-  //
-  // Semantic zoom: when the user zooms (transform.k), we modulate inter-
-  // node distances around the viewport centre. Zoom in → nodes spread
-  // apart, zoom out → they compact. This makes the constellation feel
-  // infinite rather than a bounded rectangle.
-  const PADDING = 60; // px margin from viewport edges
-  const bbox = useMemo(() => {
-    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
-    for (const n of nodes) {
-      if (n.x === undefined || n.y === undefined) continue;
-      if (n.x < xMin) xMin = n.x;
-      if (n.x > xMax) xMax = n.x;
-      if (n.y < yMin) yMin = n.y;
-      if (n.y > yMax) yMax = n.y;
-    }
-    if (!isFinite(xMin)) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
-    return { xMin, xMax, yMin, yMax };
-  }, [nodes]);
-  // Map node world-position → viewport position. Normalise to [0,1] within
-  // the bounding box, then scale to [PADDING, viewportDim - PADDING].
-  const sx = dimensions.w > 0 && bbox.xMax > bbox.xMin
-    ? (dimensions.w - PADDING * 2) / (bbox.xMax - bbox.xMin) : 1;
-  const sy = dimensions.h > 0 && bbox.yMax > bbox.yMin
-    ? (dimensions.h - PADDING * 2) / (bbox.yMax - bbox.yMin) : 1;
-  // Uniform scale preserves aspect ratio of the layout (no stretch).
-  // Use the smaller factor so everything fits, then centre in the
-  // dimension that has leftover space.
-  const sUniform = Math.min(sx, sy);
-  const mappedW = (bbox.xMax - bbox.xMin) * sUniform;
-  const mappedH = (bbox.yMax - bbox.yMin) * sUniform;
-  const offsetX = (dimensions.w - mappedW) / 2;
-  const offsetY = (dimensions.h - mappedH) / 2;
-  // ─── Unified coordinate functions ──────────────────────────────────────────
-  // TWO functions replace the old toVP + entryPos + manual transform:
-  //
-  // toBase(wx, wy) — bbox-norm + semantic spread. Used for the quadtree
-  //   (positions that don't change with geometric zoom or entry animation).
-  //   Hit-testing inverts the geometric transform on the pointer, then queries.
-  //
-  // toScreen(wx, wy) — toBase + entry animation + geometric transform.
-  //   Final pixel coordinates for ALL rendering (canvas, SVG, labels).
-  //   No wrapping <g transform> needed.
-  const vcx = dimensions.w / 2;
-  const vcy = dimensions.h / 2;
-  const spreadK = Math.pow(transform.k, 0.4);
-  const toBase = useCallback((wx: number, wy: number): { x: number; y: number } => {
-    const bx = (wx - bbox.xMin) * sUniform + offsetX;
-    const by = (wy - bbox.yMin) * sUniform + offsetY;
-    return {
-      x: vcx + (bx - vcx) * spreadK,
-      y: vcy + (by - vcy) * spreadK,
-    };
-  }, [bbox.xMin, bbox.yMin, sUniform, offsetX, offsetY, vcx, vcy, spreadK]);
-  // ─── Entry position interpolator ─────────────────────────────────────────
-  // Elastic ease-out: overshoots then settles — feels organic/living.
-  const elasticOut = (t: number): number => {
-    if (t === 0 || t === 1) return t;
-    return Math.pow(2, -10 * t) * Math.sin((t - 0.075) * (2 * Math.PI) / 0.3) + 1;
-  };
-  // Centre of the viewport in viewport-scaled coordinates.
-  const cx = dimensions.w / 2;
-  const cy = dimensions.h / 2;
-  // Max distance from centre (for normalising stagger).
-  const maxDist = useMemo(() => {
-    if (!layout) return 1;
-    let m = 0;
-    for (const n of nodes) {
-      if (n.x === undefined || n.y === undefined) continue;
-      const vp = toBase(n.x, n.y);
-      const d = Math.hypot(vp.x - cx, vp.y - cy);
-      if (d > m) m = d;
-    }
-    return m || 1;
-  }, [nodes, toBase, cx, cy, layout]);
-  // Given a node's final base-space position, return the interpolated
-  // position based on entryProgress. During the entry animation, nodes
-  // start at viewport centre and fly outward with elastic easing +
-  // per-node stagger (nodes further from centre arrive later).
-  const entryDone = entryProgress >= 1;
-  const entryInterp = useCallback((finalX: number, finalY: number): { x: number; y: number } => {
-    if (entryDone) return { x: finalX, y: finalY };
-    const dist = Math.hypot(finalX - cx, finalY - cy);
-    const normDist = dist / maxDist; // 0 = centre, 1 = edge
-    // Stagger: centre nodes start immediately, edge nodes delayed by ~30%.
-    const staggerDelay = normDist * 0.3;
-    const localT = Math.max(0, Math.min(1, (entryProgress - staggerDelay) / (1 - staggerDelay)));
-    const eased = elasticOut(localT);
-    return {
-      x: cx + (finalX - cx) * eased,
-      y: cy + (finalY - cy) * eased,
-    };
-  }, [entryDone, entryProgress, cx, cy, maxDist]);
-  // ─── toScreen: the ONE function all renderers call ────────────────────────
-  // Combines: bbox-norm + semantic spread + entry animation + geometric zoom.
-  // Returns final pixel coordinates — no wrapping transform needed.
-  const toScreen = useCallback((wx: number, wy: number): { x: number; y: number } => {
-    const base = toBase(wx, wy);
-    const ep = entryInterp(base.x, base.y);
-    return {
-      x: ep.x * transform.k + transform.x,
-      y: ep.y * transform.k + transform.y,
-    };
-  }, [toBase, entryInterp, transform.k, transform.x, transform.y]);
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
@@ -551,18 +378,13 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     for (const [clanId, group] of Object.entries(groups)) {
       if (group.length < 2) continue;
       let cx = 0, cy = 0;
-      // Apply toScreen so centroids land where nodes do (screen-space).
-      for (const n of group) {
-        const sp = toScreen(n.x!, n.y!);
-        cx += sp.x; cy += sp.y;
-      }
+      for (const n of group) { cx += n.x!; cy += n.y!; }
       cx /= group.length; cy /= group.length;
       // Approximate radius: distance to farthest member
       let maxDist = 0;
       for (const n of group) {
-        const sp = toScreen(n.x!, n.y!);
-        const d = Math.hypot(sp.x - cx, sp.y - cy);
-        if (d > maxDist) maxDist = d;
+        const d = Math.hypot(n.x! - cx, n.y! - cy);
+        if (d> maxDist) maxDist = d;
       }
       centroids.push({
         id: `centroid-${clanId}`,
@@ -570,11 +392,11 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         tribalColor: group[0].tribalColor ?? group[0].color ?? "#888",
         x: cx,
         y: cy,
-        size: Math.max(28 * transform.k, maxDist + 22),
+        size: Math.max(28, maxDist + 22),
       });
     }
     return centroids;
-  }, [nodes, toScreen, transform.k]);
+  }, [nodes]);
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -635,162 +457,16 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     }
     return m;
   }, [nodes, animTick, pivot, connectedIds, selectedNode, STATIC_OFFSET]);
-  // ─── Attention set (drives Canvas/SVG split) ──────────────────────────────
-  // SVG renders only this set — pivot, hovered, selected, plus everything
-  // directly connected to the pivot. Canvas paints everyone else.
-  const attentionSet = useMemo(() => {
-    const s = new Set<string>();
-    if (pivot) s.add(pivot);
-    if (hoveredNode) s.add(hoveredNode);
-    if (selectedNode) s.add(selectedNode);
-    for (const id of connectedIds) s.add(id);
-    return s;
-  }, [pivot, hoveredNode, selectedNode, connectedIds]);
-  // ─── Quadtree over precomputed positions (Capa B) ─────────────────────────
-  // Built once from the build-time layout, the quadtree lets us cull nodes
-  // outside the visible viewport before paying for ~3 SVG layers × 1300
-  // nodes (deco + hit + label). Typical zoom shows 100-300 nodes — about a
-  // 5-10× cut on render work without changing any visuals.
-  //
-  // d3.quadtree's visit() walks the tree, pruning whole subtrees whose
-  // bounding box doesn't intersect our query AABB. O((output_size + log n))
-  // versus O(n) per render.
-  // Quadtree accessors apply the viewport scale so all queries (visible AABB,
-  // pointer hit-tests) work in viewport coordinates — same space that pointer
-  // events and the d3-zoom transform operate in.
-  // Quadtree stores positions in "base" space (bbox-norm + semantic spread,
-  // but NO geometric transform and NO entry animation). The hit-test handler
-  // inverts the geometric transform on the pointer, then queries.
-  const nodeQuadtree = useMemo(() => {
-    return d3
-      .quadtree<MapNode>()
-      .x((d) => toBase(d.x ?? 0, d.y ?? 0).x)
-      .y((d) => toBase(d.x ?? 0, d.y ?? 0).y)
-      .addAll(nodes.filter((n) => n.x !== undefined && n.y !== undefined));
-  }, [nodes, toBase]);
-  // Visible node ids: query the quadtree for the world-space AABB that
-  // maps to the current viewport (inverse of the d3-zoom transform), with
-  // a generous margin so labels/halos near the edge don't clip in.
-  const visibleNodeIds = useMemo(() => {
-    if (!nodes.length) return null; // null = "render all" (e.g. layout not ready)
-    const margin = 120; // px in world space — accommodates halos + labels
-    const k = transform.k || 1;
-    const x0 = (0 - transform.x) / k - margin;
-    const y0 = (0 - transform.y) / k - margin;
-    const x3 = (dimensions.w - transform.x) / k + margin;
-    const y3 = (dimensions.h - transform.y) / k + margin;
-    const ids = new Set<string>();
-    nodeQuadtree.visit((node, qx0, qy0, qx3, qy3) => {
-      // Prune subtrees outside the AABB.
-      if (qx0 > x3 || qy0 > y3 || qx3 < x0 || qy3 < y0) return true;
-      // Leaf: walk the linked list of points.
-      if (!node.length) {
-        let leaf: { data: MapNode; next?: { data: MapNode; next?: unknown } } | undefined =
-          node as unknown as { data: MapNode; next?: { data: MapNode; next?: unknown } };
-        do {
-          const d = leaf.data;
-          const { x: dx, y: dy } = toBase(d.x ?? 0, d.y ?? 0);
-          if (dx >= x0 && dx <= x3 && dy >= y0 && dy <= y3) ids.add(d.id);
-          leaf = leaf.next as typeof leaf;
-        } while (leaf);
-      }
-      return false;
-    });
-    // Always keep pivot + connected + hovered/selected on stage, even if
-    // they happen to be outside the viewport after a pan — preserves the
-    // "I'm focused on this node" guarantee.
-    if (pivot) ids.add(pivot);
-    if (hoveredNode) ids.add(hoveredNode);
-    if (selectedNode) ids.add(selectedNode);
-    for (const id of connectedIds) ids.add(id);
-    return ids;
-  }, [nodeQuadtree, toBase, transform, dimensions, nodes.length, pivot, hoveredNode, selectedNode, connectedIds]);
   // ─── Focus point for atmospheric field ────────────────────────────────────
   const focusPoint = useMemo(() => {
     if (!pivot) return null;
     const n = nodes.find((x) => x.id === pivot);
     if (!n || !n.x || !n.y) return null;
     const off = nodeOffsets.get(n.id);
-    const sp = toScreen(n.x, n.y);
-    const x = sp.x + (off?.dx ?? 0) * transform.k;
-    const y = sp.y + (off?.dy ?? 0) * transform.k;
+    const x = (n.x + (off?.dx ?? 0)) * transform.k + transform.x;
+    const y = (n.y + (off?.dy ?? 0)) * transform.k + transform.y;
     return { x, y };
-  }, [pivot, nodes, nodeOffsets, transform, toScreen]);
-  // ─── Canvas paint: all AMBIENT nodes in one pass ──────────────────────────
-  // Replaces 3 SVG layers (deco/hit/labels) × ~1300 nodes ≈ 4000 elements
-  // with a single canvas paint of a few thousand 2D ops. Repaints only when
-  // node data, filter, or attention set changes — never per animation tick.
-  // Runs in world-space coordinates; CSS transform on the wrapper handles
-  // zoom/pan for free (no repaint on drag/wheel).
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !nodes.length || !layout || !dimensions.w || !dimensions.h) return;
-    // Canvas matches viewport, not canonical world. Node positions are
-    // stretched by sx/sy into this space — the map fills the user's window
-    // edge-to-edge regardless of aspect ratio.
-    const W = dimensions.w;
-    const H = dimensions.h;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for perf
-    if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
-      canvas.width = W * dpr;
-      canvas.height = H * dpr;
-      canvas.style.width = `${W}px`;
-      canvas.style.height = `${H}px`;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, W, H);
-    // Resolve theme-dependent colours (canvas doesn't read CSS vars).
-    const styles = getComputedStyle(document.documentElement);
-    const inkColor = styles.getPropertyValue("--album-ink").trim() || "#F0EDE8";
-    const inkMuted = styles.getPropertyValue("--album-ink-muted").trim() || "#8A8799";
-    for (const node of nodes) {
-      if (node.x === undefined || node.y === undefined) continue;
-      // Attention set is rendered by SVG — skip here.
-      if (attentionSet.has(node.id)) continue;
-      const r = nodeRadius(node);
-      const filtered = isNodeFiltered(node);
-      const isEmotion = node.type === "emotion";
-      const isColor = node.type === "color";
-      const isClanMate = pivot ? clanMateIds.has(node.id) : false;
-      const isEchoConn = pivot ? echoIds.has(node.id) : false;
-      // Same opacity ladder as the SVG path used.
-      const opacity = !filtered ? 0.06
-        : !pivot ? 1
-        : isClanMate ? 0.7
-        : isEchoConn ? 0.45
-        : 0.12;
-      if (opacity < 0.04) continue; // imperceptible — skip the paint
-      const fillColor = node.color ?? "#888";
-      // Final screen position via toScreen (bbox-norm + spread + entry + zoom).
-      const { x: px, y: py } = toScreen(node.x, node.y);
-      const sr = r * transform.k; // scale radius with zoom
-      // Skip if entirely off-screen (GPU would clip anyway, but saves draw calls)
-      if (px + sr < 0 || px - sr > W || py + sr < 0 || py - sr > H) continue;
-      // Body fill (cultural & emotion, not color)
-      if (!isColor) {
-        ctx.beginPath();
-        ctx.arc(px, py, sr, 0, Math.PI * 2);
-        ctx.fillStyle = fillColor;
-        ctx.globalAlpha = opacity * (isEmotion ? 1 : 0.65);
-        ctx.fill();
-      }
-      // Body stroke
-      ctx.beginPath();
-      ctx.arc(px, py, sr, 0, Math.PI * 2);
-      ctx.strokeStyle = fillColor;
-      ctx.lineWidth = (isEmotion ? 1.2 : 0.6) * transform.k;
-      ctx.globalAlpha = opacity * (isEmotion ? 0.95 : 0.55);
-      ctx.stroke();
-      // Labels removed from canvas — canvas text is rasterised at a fixed
-      // DPR and then CSS-scaled by transform.k, which produces visible
-      // blur at any zoom above 1×. Emotion labels for ambient nodes are
-      // rendered in the SVG label layer below (vector, always crisp).
-      void inkColor; void inkMuted;
-    }
-    ctx.globalAlpha = 1;
-  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, toScreen, dimensions.w, dimensions.h, transform]);
+  }, [pivot, nodes, nodeOffsets, transform]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -800,27 +476,18 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const t = typeof l.target === "object" ? (l.target as MapNode) : nodes.find((n) => n.id === tId);
     const sOff = sId ? nodeOffsets.get(sId) : undefined;
     const tOff = tId ? nodeOffsets.get(tId) : undefined;
-    // Endpoints in final screen-space via toScreen.
-    const sSp = toScreen(s?.x ?? 0, s?.y ?? 0);
-    const tSp = toScreen(t?.x ?? 0, t?.y ?? 0);
     return {
       ...l,
       sId,
       tId,
-      sx: sSp.x + (sOff?.dx ?? 0) * transform.k,
-      sy: sSp.y + (sOff?.dy ?? 0) * transform.k,
-      tx: tSp.x + (tOff?.dx ?? 0) * transform.k,
-      ty: tSp.y + (tOff?.dy ?? 0) * transform.k,
+      sx: (s?.x ?? 0) + (sOff?.dx ?? 0),
+      sy: (s?.y ?? 0) + (sOff?.dy ?? 0),
+      tx: (t?.x ?? 0) + (tOff?.dx ?? 0),
+      ty: (t?.y ?? 0) + (tOff?.dy ?? 0),
       idx,
     };
   };
-  // Resolve link endpoints with personality offsets applied.
-  // Capa B: cull links whose endpoints are both off-screen — keeps the
-  // links layer proportional to the visible nodes layer.
-  // visibleNodeIds culling disabled — with semantic zoom the spread
-  // pushes edge nodes outside the AABB calculation, causing them to
-  // vanish. Canvas paints ~1300 arcs in one pass (GPU clips off-screen
-  // ones for free), so the culling wasn't buying much anyway.
+  // Resolve link endpoints with personality offsets applied
   const linkData = links.map((l, idx) => resolveLink(l, idx));
   const emergentLinkData = emergentLinks.map((l, idx) => resolveLink(l, idx));
   // Sort links so direct ones reveal first, then echoes
@@ -840,53 +507,13 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         height={dimensions.h}
         focusPoint={focusPoint}
       />
-      {/* Canvas: paints all AMBIENT nodes in final screen coordinates.
-          No CSS transform — the geometric zoom + semantic spread are
-          applied per-node in the paint loop. This avoids clipping nodes
-          pushed outside the canvas bounds by semantic zoom, and keeps
-          circles crisp at any zoom level (no CSS magnification). */}
-      {layout && dimensions.w > 0 && (
-        <div
-          aria-hidden
-          className="absolute top-0 left-0 pointer-events-none"
-        >
-          <canvas ref={canvasRef} style={{ display: "block" }} />
-        </div>
-      )}
       <svg
         ref={svgRef}
         className="relative w-full h-full cursor-grab active:cursor-grabbing"
         style={{ touchAction: "none" }}
-        onPointerMove={(e) => {
-          // Single quadtree-based hover handler. Replaces ~1300 per-node
-          // onMouseEnter listeners. World-space lookup: invert the d3-zoom
-          // transform on the pointer position, then quadtree.find(...) for
-          // the nearest node within a radius. ~O(log n) per move event.
-          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-          const wx = (e.clientX - rect.left - transform.x) / transform.k;
-          const wy = (e.clientY - rect.top - transform.y) / transform.k;
-          const HIT_RADIUS = 24 / transform.k; // visual ~24px regardless of zoom
-          const found = nodeQuadtree.find(wx, wy, HIT_RADIUS);
-          if (found) {
-            if (hoveredNode !== found.id) {
-              setHoveredNode(found.id);
-              trackEvent("node_hovered", { nodeId: found.id, type: found.type });
-            }
-          } else if (hoveredNode) {
-            setHoveredNode(null);
-          }
-        }}
-        onPointerLeave={() => { if (hoveredNode) setHoveredNode(null); }}
         onClick={(e) => {
-          // Quadtree-based click. If pointer is over a node, toggle pin;
-          // otherwise deselect.
-          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-          const wx = (e.clientX - rect.left - transform.x) / transform.k;
-          const wy = (e.clientY - rect.top - transform.y) / transform.k;
-          const HIT_RADIUS = 24 / transform.k;
-          const found = nodeQuadtree.find(wx, wy, HIT_RADIUS);
-          if (found) handleNodeClick(found);
-          else setSelectedNode(null);
+          // Click on empty canvas (not a node <g>) deselects.
+          if ((e.target as SVGElement).tagName === "svg") setSelectedNode(null);
         }}
 >
         <defs>
@@ -913,7 +540,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             </feMerge>
           </filter>
         </defs>
-        <g>
+        <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
           {/* Clan labels — float at each clan's centroid, faint by default,
               emphasized when a member is hovered. Sits behind links/nodes. */}
           <g className="clan-labels">
@@ -932,9 +559,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     style={{ transition: "fill-opacity 0.5s ease" }}
                   />
                   <text
-                    y={-c.size - 6 * transform.k}
+                    y={-c.size - 6}
                     textAnchor="middle"
-                    fontSize={(isActive ? 10 : 8.5) * transform.k}
+                    fontSize={isActive ? 10 : 8.5}
                     fill={c.tribalColor}
                     fillOpacity={isActive ? 0.88 : pivot ? 0.18 : 0.38}
                     style={{
@@ -967,9 +594,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     x2={link.tx}
                     y2={link.ty}
                     stroke="#4A9AA0"
-                    strokeWidth={Math.max(0.8, (link.strength - 0.7) * 6) * transform.k}
+                    strokeWidth={Math.max(0.8, (link.strength - 0.7) * 6)}
                     strokeOpacity={0.7}
-                    strokeDasharray={`${3 * transform.k} ${4 * transform.k}`}
+                    strokeDasharray="3 4"
                   />
                 ))}
             </g>
@@ -1006,9 +633,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     : link.resonanceType === "sensory" ? "#5A9AB0"
                     : "#6A6A8A"
                   }
-                  strokeWidth={link.strength * (isDirect ? 1.8 : 1.4) * transform.k}
+                  strokeWidth={link.strength * (isDirect ? 1.8 : 1.4)}
                   strokeOpacity={finalOpacity}
-                  strokeDasharray={(link.ambiguity ?? 0)> 0.3 ? `${4 * transform.k} ${6 * transform.k}` : undefined}
+                  strokeDasharray={(link.ambiguity ?? 0)> 0.3 ? "4 6" : undefined}
                 />
               );
             })}
@@ -1043,14 +670,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             hit layer above; its label sits in the label layer above that.
           */}
           {(() => {
-            // Canvas mode: SVG renders ONLY the attention set (pivot,
-            // connected, hovered, selected). Everything else is on the
-            // canvas underneath. Falls back to "render all" if the canvas
-            // isn't available (no layout — legacy callers).
-            const attentionOnly = layout
-              ? nodes.filter((n) => attentionSet.has(n.id))
-              : nodes;
-            const sortedNodes = [...attentionOnly].sort((a, b) => {
+            const sortedNodes = [...nodes].sort((a, b) => {
               const pri = (id: string) => {
                 if (connectedIds.has(id) && id !== pivot) return 3;
                 if (id === pivot) return 2;
@@ -1076,13 +696,9 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               .map((node) => {
                 if (!node.x || !node.y) return null;
                 const off = nodeOffsets.get(node.id) ?? { dx: 0, dy: 0, scale: 1, glow: 0 };
-                // Position in final screen-space via toScreen. Personality
-                // offsets and radii scale with zoom since we're no longer
-                // inside a <g scale(k)>.
-                const sp = toScreen(node.x, node.y);
-                const x = sp.x + off.dx * transform.k;
-                const y = sp.y + off.dy * transform.k;
-                const r = nodeRadius(node) * off.scale * transform.k;
+                const x = node.x + off.dx;
+                const y = node.y + off.dy;
+                const r = nodeRadius(node) * off.scale;
                 const filtered = isNodeFiltered(node);
                 const isHovered = node.id === hoveredNode;
                 const isSelected = node.id === selectedNode;
@@ -1115,7 +731,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     <g key={node.id} transform={`translate(${x},${y})`}
                        style={{ opacity, transition: "opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1)" }}>
                       {node.type === "color" && (
-                        <circle r={r + 1.5 * transform.k} fill={node.color} fillOpacity={isHovered ? 0.9 : 0.55} />
+                        <circle r={r + 1.5} fill={node.color} fillOpacity={isHovered ? 0.9 : 0.55} />
                       )}
                       {node.type === "emotion" && (() => {
                         const pat = emotionMotion(node.id);
@@ -1124,7 +740,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                         return (
                           <>
                             <circle
-                              r={r + (22 + off.glow * 10) * transform.k}
+                              r={r + 22 + off.glow * 10}
                               fill={node.color}
                               fillOpacity={isHovered ? 0.22 : 0.10 + off.glow * 0.08}
                               style={pivot && (isPivotConn || isClanMate) ? {
@@ -1137,8 +753,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                               } : { filter: tribeGlow, transition: "fill-opacity 0.4s ease" }}
                             />
                             {(isHovered || isSelected) && (
-                              <circle r={r + 18 * transform.k} fill="none" stroke={node.color}
-                                strokeWidth={0.8 * transform.k} strokeOpacity={0.55}
+                              <circle r={r + 18} fill="none" stroke={node.color}
+                                strokeWidth={0.8} strokeOpacity={0.55}
                                 style={{ animation: "bloom 2.4s ease-in-out infinite" }} />
                             )}
                           </>
@@ -1153,7 +769,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                           : 0.65
                         }
                         stroke={node.color}
-                        strokeWidth={(node.type === "emotion" ? 1.2 : 0.6) * transform.k}
+                        strokeWidth={node.type === "emotion" ? 1.2 : 0.6}
                         strokeOpacity={isHovered ? 1 : node.type === "emotion" ? 0.95 : 0.55}
                         style={{
                           filter: node.type === "emotion" ? tribeGlow
@@ -1161,8 +777,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                         }}
                       />
                       {node.type === "music" && (
-                        <circle r={r + (3 + off.glow * 3) * transform.k} fill="none" stroke={node.color}
-                          strokeWidth={0.4 * transform.k} strokeOpacity={0.3 + off.glow * 0.4} />
+                        <circle r={r + 3 + off.glow * 3} fill="none" stroke={node.color}
+                          strokeWidth={0.4} strokeOpacity={0.3 + off.glow * 0.4} />
                       )}
                       {GLYPH[node.type] && (
                         <text
@@ -1180,19 +796,34 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                     </g>
                   ))}
                 </g>
-                {/* Hit-target layer removed — quadtree-based onPointerMove on
-                    the <svg> handles ALL hover/click (attention + ambient)
-                    in one pass via d3-quadtree.find(). See the handlers on
-                    the parent <svg>. */}
+                {/* ─── Layer 4: Hit targets (THE ONLY clickable layer) ─── */}
+                <g className="map-hits">
+                  {rendered.map(({ node, x, y, hitR, opacity }) => (
+                    // Transparent circle sized to the perceived body. Decoupled
+                    // from visual halos, so nothing else in the SVG can shadow it.
+                    <circle
+                      key={node.id}
+                      cx={x} cy={y} r={hitR}
+                      fill="transparent"
+                      style={{ cursor: opacity> 0.3 ? "pointer" : "default" }}
+                      onMouseEnter={() => {
+                        setHoveredNode(node.id);
+                        trackEvent("node_hovered", { nodeId: node.id, type: node.type });
+                      }}
+                      onMouseLeave={() => setHoveredNode(null)}
+                      onClick={() => handleNodeClick(node)}
+                    />
+                  ))}
+                </g>
                 {/* ─── Layer 5: Labels (above everything, never clickable) ─── */}
                 <g className="map-labels" pointerEvents="none">
                   {rendered.map(({ node, x, y, r, opacity, isHovered, isSelected, isPivotConn }) => (
                     <text
                       key={node.id}
                       x={x}
-                      y={y + r + 14 * transform.k}
+                      y={y + r + 14}
                       textAnchor="middle"
-                      fontSize={(node.type === "emotion" ? 9 : (isHovered ? 9 : 7.5)) * transform.k}
+                      fontSize={node.type === "emotion" ? 9 : (isHovered ? 9 : 7.5)}
                       fill={node.type === "emotion" ? "var(--album-ink)" : "var(--album-ink-muted)"}
                       fillOpacity={
                         // Labels always show when the node itself is the
@@ -1219,43 +850,6 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               </>
             );
           })()}
-          {/* ─── Layer 6: Ambient emotion labels (in main SVG, screen-space) ── */}
-          <g className="ambient-labels" pointerEvents="none">
-            {nodes.map((node) => {
-              if (node.type !== "emotion") return null;
-              if (!node.x || !node.y) return null;
-              if (attentionSet.has(node.id)) return null;
-              const filtered = isNodeFiltered(node);
-              const isClanMate = pivot ? clanMateIds.has(node.id) : false;
-              const isEchoConn = pivot ? echoIds.has(node.id) : false;
-              const opacity = !filtered ? 0.06
-                : !pivot ? 1
-                : isClanMate ? 0.7
-                : isEchoConn ? 0.45
-                : 0.12;
-              if (opacity < 0.3) return null;
-              const sp = toScreen(node.x, node.y);
-              const r = nodeRadius(node) * transform.k;
-              return (
-                <text
-                  key={node.id}
-                  x={sp.x}
-                  y={sp.y + r + 14 * transform.k}
-                  textAnchor="middle"
-                  fontSize={9 * transform.k}
-                  fill="var(--album-ink)"
-                  fillOpacity={0.7 * opacity}
-                  style={{
-                    fontFamily: "var(--font-technical)",
-                    letterSpacing: "0.04em",
-                    userSelect: "none",
-                  }}
-                >
-                  {node.label}
-                </text>
-              );
-            })}
-          </g>
         </g>
       </svg>
       {/* Full-screen card painted with the node's colour. Replaces the
@@ -1300,58 +894,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
           })}
         </div>
       </div>
-      {/* ─── Zoom controls (for trackpad/touch users without scroll wheel) ─── */}
-      <div className="absolute bottom-16 right-6 z-10 flex flex-col gap-1">
-        <button
-          onClick={() => {
-            if (!svgRef.current || !zoomRef.current) return;
-            const sel = d3.select(svgRef.current);
-            sel.transition().duration(300).call(zoomRef.current.scaleBy, 1.4);
-          }}
-          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
-          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
-          title="Zoom in"
-          aria-label="Zoom in"
-        >
-          <span className="icon" style={{ fontSize: "18px" }}>add</span>
-        </button>
-        <button
-          onClick={() => {
-            if (!svgRef.current || !zoomRef.current) return;
-            const sel = d3.select(svgRef.current);
-            sel.transition().duration(300).call(zoomRef.current.scaleBy, 1 / 1.4);
-          }}
-          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
-          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
-          title="Zoom out"
-          aria-label="Zoom out"
-        >
-          <span className="icon" style={{ fontSize: "18px" }}>remove</span>
-        </button>
-        <button
-          onClick={() => {
-            if (!svgRef.current || !zoomRef.current) return;
-            const sel = d3.select(svgRef.current);
-            sel.transition().duration(500).call(
-              zoomRef.current.transform,
-              d3.zoomIdentity.translate(
-                (dimensions.w - dimensions.w * 1.25) / 2,
-                (dimensions.h - dimensions.h * 1.25) / 2,
-              ).scale(1.25),
-            );
-          }}
-          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
-          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
-          title="Reset zoom"
-          aria-label="Reset zoom"
-        >
-          <span className="icon" style={{ fontSize: "16px" }}>my_location</span>
-        </button>
-      </div>
-      {/* Tribe filters — 22 tribes, compact column with hover-expand labels.
-          Glass background so the canvas nodes painted underneath don't bleed
-          through the text. */}
-      <div className="glass absolute top-20 left-4 z-10 max-h-[calc(100vh-120px)] overflow-y-auto rounded-xl py-3 pl-3 pr-2 pb-4">
+      {/* Tribe filters — 22 tribes, compact column with hover-expand labels */}
+      <div className="absolute top-20 left-4 z-10 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-4">
         <p
           className="text-[0.55rem] text-ink-faint mb-2 pl-1"
           style={{ fontFamily: "var(--font-technical)", letterSpacing: "0.2em" }}
