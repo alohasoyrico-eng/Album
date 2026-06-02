@@ -260,8 +260,13 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
   // ─── Measure container ────────────────────────────────────────────────────
+  // `dimensions` starts at the canonical world size (layout.viewBox) so SSR
+  // and first hydration render with consistent values. After mount this
+  // effect overrides with the real viewport size. `viewportMeasured` is
   useEffect(() => {
-    const update = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
+    const update = () => {
+      setDimensions({ w: window.innerWidth, h: window.innerHeight });
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
@@ -323,8 +328,6 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => cancelAnimationFrame(raf);
   }, [hoveredNode, selectedNode]);
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
-  const zoomBehaviorRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
-  const hasFittedRef = useRef(false);
   useEffect(() => {
     if (!svgRef.current) return;
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -332,34 +335,27 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       .on("zoom", (event) => {
         setTransform({ x: event.transform.x, y: event.transform.y, k: event.transform.k });
       });
-    zoomBehaviorRef.current = zoom;
     d3.select(svgRef.current).call(zoom);
   }, [dimensions]);
-  // Initial "fit to viewport" — when both layout and dimensions are known,
-  // compute the transform that scales the canonical 1920×1080 world to fit
-  // entirely inside the actual viewport, centered. This eliminates the
-  // empty band that appeared at the bottom (or right) when the viewport
-  // didn't match the canonical aspect ratio.
+  // ─── World-to-viewport scale (adaptive layout) ────────────────────────────
+  // The d3-force layout was precomputed at canonical 1920×1080 world coords.
+  // Rather than letterbox the canonical world inside the viewport (which
+  // leaves visible empty bands when the aspect ratios differ), we STRETCH
+  // node positions to fill the actual viewport on every paint.
   //
-  // The fit is applied via d3-zoom.transform so the user can still pan/zoom
-  // from this starting position normally. Runs once per layout, not on
-  // every resize — re-fitting on resize would yank the camera away from
-  // wherever the user had explored to.
-  useEffect(() => {
-    if (hasFittedRef.current) return;
-    if (!layout || !dimensions.w || !dimensions.h) return;
-    if (!svgRef.current || !zoomBehaviorRef.current) return;
-    const W = layout.viewBox.w;
-    const H = layout.viewBox.h;
-    const fit = Math.min(dimensions.w / W, dimensions.h / H);
-    const tx = (dimensions.w - W * fit) / 2;
-    const ty = (dimensions.h - H * fit) / 2;
-    d3.select(svgRef.current).call(
-      zoomBehaviorRef.current.transform,
-      d3.zoomIdentity.translate(tx, ty).scale(fit),
-    );
-    hasFittedRef.current = true;
-  }, [layout, dimensions.w, dimensions.h]);
+  // sx, sy are the per-axis scale factors. They're applied to every node's
+  // x/y when painting the canvas, building the quadtree, rendering the SVG
+  // attention layer, and resolving link endpoints — everywhere a position
+  // is consumed. Radii stay in pixels (not scaled), so circles remain
+  // circular even when sx ≠ sy.
+  //
+  // Result: the map fills the user's window edge-to-edge regardless of
+  // aspect ratio, and adapts in real time when the window is resized.
+  // Cost: a small linear distortion of inter-node distances vs the
+  // canonical layout — acceptable because the semantic meaning ("close
+  // = related") is preserved monotonically.
+  const sx = layout && dimensions.w ? dimensions.w / layout.viewBox.w : 1;
+  const sy = layout && dimensions.h ? dimensions.h / layout.viewBox.h : 1;
   // ─── Hover tracking (for progressive reveal) ──────────────────────────────
   useEffect(() => {
     if (hoveredNode) setHoverStart(performance.now());
@@ -417,13 +413,14 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     for (const [clanId, group] of Object.entries(groups)) {
       if (group.length < 2) continue;
       let cx = 0, cy = 0;
-      for (const n of group) { cx += n.x!; cy += n.y!; }
+      // Apply viewport scale so centroids land where the scaled nodes do.
+      for (const n of group) { cx += n.x! * sx; cy += n.y! * sy; }
       cx /= group.length; cy /= group.length;
       // Approximate radius: distance to farthest member
       let maxDist = 0;
       for (const n of group) {
-        const d = Math.hypot(n.x! - cx, n.y! - cy);
-        if (d> maxDist) maxDist = d;
+        const d = Math.hypot(n.x! * sx - cx, n.y! * sy - cy);
+        if (d > maxDist) maxDist = d;
       }
       centroids.push({
         id: `centroid-${clanId}`,
@@ -435,7 +432,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       });
     }
     return centroids;
-  }, [nodes]);
+  }, [nodes, sx, sy]);
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -516,13 +513,16 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   // d3.quadtree's visit() walks the tree, pruning whole subtrees whose
   // bounding box doesn't intersect our query AABB. O((output_size + log n))
   // versus O(n) per render.
+  // Quadtree accessors apply the viewport scale so all queries (visible AABB,
+  // pointer hit-tests) work in viewport coordinates — same space that pointer
+  // events and the d3-zoom transform operate in.
   const nodeQuadtree = useMemo(() => {
     return d3
       .quadtree<MapNode>()
-      .x((d) => d.x ?? 0)
-      .y((d) => d.y ?? 0)
+      .x((d) => (d.x ?? 0) * sx)
+      .y((d) => (d.y ?? 0) * sy)
       .addAll(nodes.filter((n) => n.x !== undefined && n.y !== undefined));
-  }, [nodes]);
+  }, [nodes, sx, sy]);
   // Visible node ids: query the quadtree for the world-space AABB that
   // maps to the current viewport (inverse of the d3-zoom transform), with
   // a generous margin so labels/halos near the edge don't clip in.
@@ -544,8 +544,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
           node as unknown as { data: MapNode; next?: { data: MapNode; next?: unknown } };
         do {
           const d = leaf.data;
-          const dx = d.x ?? 0;
-          const dy = d.y ?? 0;
+          const dx = (d.x ?? 0) * sx;
+          const dy = (d.y ?? 0) * sy;
           if (dx >= x0 && dx <= x3 && dy >= y0 && dy <= y3) ids.add(d.id);
           leaf = leaf.next as typeof leaf;
         } while (leaf);
@@ -567,10 +567,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const n = nodes.find((x) => x.id === pivot);
     if (!n || !n.x || !n.y) return null;
     const off = nodeOffsets.get(n.id);
-    const x = (n.x + (off?.dx ?? 0)) * transform.k + transform.x;
-    const y = (n.y + (off?.dy ?? 0)) * transform.k + transform.y;
+    const x = (n.x * sx + (off?.dx ?? 0)) * transform.k + transform.x;
+    const y = (n.y * sy + (off?.dy ?? 0)) * transform.k + transform.y;
     return { x, y };
-  }, [pivot, nodes, nodeOffsets, transform]);
+  }, [pivot, nodes, nodeOffsets, transform, sx, sy]);
   // ─── Canvas paint: all AMBIENT nodes in one pass ──────────────────────────
   // Replaces 3 SVG layers (deco/hit/labels) × ~1300 nodes ≈ 4000 elements
   // with a single canvas paint of a few thousand 2D ops. Repaints only when
@@ -579,11 +579,14 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   // zoom/pan for free (no repaint on drag/wheel).
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !nodes.length || !layout) return;
-    const W = layout.viewBox.w;
-    const H = layout.viewBox.h;
+    if (!canvas || !nodes.length || !layout || !dimensions.w || !dimensions.h) return;
+    // Canvas matches viewport, not canonical world. Node positions are
+    // stretched by sx/sy into this space — the map fills the user's window
+    // edge-to-edge regardless of aspect ratio.
+    const W = dimensions.w;
+    const H = dimensions.h;
     const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2 for perf
-    if (canvas.width !== W * dpr) {
+    if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
       canvas.width = W * dpr;
       canvas.height = H * dpr;
       canvas.style.width = `${W}px`;
@@ -615,17 +618,20 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         : 0.12;
       if (opacity < 0.04) continue; // imperceptible — skip the paint
       const fillColor = node.color ?? "#888";
+      // Scaled position — every node is mapped into viewport space.
+      const px = node.x * sx;
+      const py = node.y * sy;
       // Body fill (cultural & emotion, not color)
       if (!isColor) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+        ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fillStyle = fillColor;
         ctx.globalAlpha = opacity * (isEmotion ? 1 : 0.65);
         ctx.fill();
       }
       // Body stroke
       ctx.beginPath();
-      ctx.arc(node.x, node.y, r, 0, Math.PI * 2);
+      ctx.arc(px, py, r, 0, Math.PI * 2);
       ctx.strokeStyle = fillColor;
       ctx.lineWidth = isEmotion ? 1.2 : 0.6;
       ctx.globalAlpha = opacity * (isEmotion ? 0.95 : 0.55);
@@ -640,7 +646,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         ctx.font = '9px "Space Grotesk", system-ui, sans-serif';
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
-        ctx.fillText(node.label, node.x, node.y + r + 6);
+        ctx.fillText(node.label, px, py + r + 6);
       }
       // Cultural-node muted label when pivot connection lights them up
       // (matches the SVG fillOpacity = isPivotConn && pivot ? 0.9 rule).
@@ -649,7 +655,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       void inkMuted;
     }
     ctx.globalAlpha = 1;
-  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered]);
+  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, sx, sy, dimensions.w, dimensions.h]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -659,14 +665,15 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const t = typeof l.target === "object" ? (l.target as MapNode) : nodes.find((n) => n.id === tId);
     const sOff = sId ? nodeOffsets.get(sId) : undefined;
     const tOff = tId ? nodeOffsets.get(tId) : undefined;
+    // Endpoints scaled into viewport space, same mapping as nodes/quadtree.
     return {
       ...l,
       sId,
       tId,
-      sx: (s?.x ?? 0) + (sOff?.dx ?? 0),
-      sy: (s?.y ?? 0) + (sOff?.dy ?? 0),
-      tx: (t?.x ?? 0) + (tOff?.dx ?? 0),
-      ty: (t?.y ?? 0) + (tOff?.dy ?? 0),
+      sx: (s?.x ?? 0) * sx + (sOff?.dx ?? 0),
+      sy: (s?.y ?? 0) * sy + (sOff?.dy ?? 0),
+      tx: (t?.x ?? 0) * sx + (tOff?.dx ?? 0),
+      ty: (t?.y ?? 0) * sy + (tOff?.dy ?? 0),
       idx,
     };
   };
@@ -701,15 +708,17 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
         focusPoint={focusPoint}
       />
       {/* Canvas: paints all AMBIENT nodes (everything NOT in the attention
-          set). Lives in world-space coords; the wrapper applies the d3-zoom
-          transform via CSS so pan/zoom never trigger a repaint. */}
-      {layout && (
+          set). Sized to the actual viewport so the map fills the user's
+          window with no letterboxing. Node positions are pre-scaled by
+          sx/sy in the paint loop. The wrapper applies the d3-zoom transform
+          via CSS so pan/zoom never trigger a repaint. */}
+      {layout && dimensions.w > 0 && (
         <div
           aria-hidden
           className="absolute top-0 left-0 pointer-events-none"
           style={{
-            width: layout.viewBox.w,
-            height: layout.viewBox.h,
+            width: dimensions.w,
+            height: dimensions.h,
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
             transformOrigin: "0 0",
             willChange: "transform",
@@ -941,8 +950,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
               .map((node) => {
                 if (!node.x || !node.y) return null;
                 const off = nodeOffsets.get(node.id) ?? { dx: 0, dy: 0, scale: 1, glow: 0 };
-                const x = node.x + off.dx;
-                const y = node.y + off.dy;
+                // Position scaled into viewport space; radius stays in px so
+                // circles remain circular regardless of sx vs sy.
+                const x = node.x * sx + off.dx;
+                const y = node.y * sy + off.dy;
                 const r = nodeRadius(node) * off.scale;
                 const filtered = isNodeFiltered(node);
                 const isHovered = node.id === hoveredNode;

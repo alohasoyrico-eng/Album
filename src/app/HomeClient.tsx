@@ -188,7 +188,7 @@ export function HomeClient({ mapLayout }: Props) {
         </div>
       </div>
 
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 glass rounded-full px-5 py-2.5 flex items-center gap-4">
+      <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-20 glass rounded-full px-5 py-2.5 flex items-center gap-4">
         <span className="text-xs text-ink-muted" style={{ fontFamily: "var(--font-technical)" }}>
           {EMOTIONS.length} emociones · {TRIBES.length} tribus
         </span>
