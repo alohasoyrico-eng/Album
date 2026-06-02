@@ -211,7 +211,12 @@ function nodeRadius(node: MapNode): number {
   } else if (node.resonance) {
     bias = deriveMotion(node.resonance).sizeBias;
   }
-  const r = base * bias * (node.weight ?? 1);
+  const raw = base * bias * (node.weight ?? 1);
+  // Floor: emotions must be at least 10px radius so they're always
+  // visible and clickable. Cultural nodes at least 3px.
+  const r = node.type === "emotion" ? Math.max(10, raw)
+    : node.type === "color" ? Math.max(5, raw)
+    : Math.max(3, raw);
   _radiusCache.set(node.id, r);
   return r;
 }
