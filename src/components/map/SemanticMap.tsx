@@ -259,6 +259,16 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
+  // Entry animation: start hidden, flip to visible after first paint so the
+  // CSS transition triggers visibly. requestAnimationFrame ensures the
+  // browser has committed the opacity:0 frame before we toggle.
+  const [mapVisible, setMapVisible] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      setMapVisible(true);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
   // ─── Measure container ────────────────────────────────────────────────────
   // `dimensions` starts at the canonical world size (layout.viewBox) so SSR
   // and first hydration render with consistent values. After mount this
@@ -698,7 +708,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return b.strength - a.strength;
   });
   return (
-    <div className="album-map-enter relative w-full h-full select-none overflow-hidden">
+    <div className={`album-map-enter${mapVisible ? " album-map-visible" : ""} relative w-full h-full select-none overflow-hidden`}>
       {/* Atmospheric field — sits behind the map, reacts to active emotion */}
       <AtmosphericField
         hoveredNodeId={hoveredNode}

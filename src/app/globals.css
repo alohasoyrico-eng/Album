@@ -238,18 +238,30 @@ body {
    fade+blossom from the centre of the viewport. Transform + opacity
    only — no per-node animation, no main-thread cost. The 1.1s duration
    with ease-out gives the constellation time to "exhale" into place. */
-@keyframes album-map-enter {
-  0%   { opacity: 0; transform: scale(0.94); filter: blur(2px); }
-  60%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: scale(1); filter: blur(0); }
-}
+/* Entry animation for the SemanticMap.
+   Two-phase: starts hidden (.album-map-enter), then a JS effect adds
+   .album-map-visible after mount to trigger the transition. This avoids
+   the race between SSR-hydrated content and CSS animation start time.
+   Uses transform + opacity only (GPU composited). No filter:blur —
+   it's main-thread computed and expensive on a 1300-node canvas. */
 .album-map-enter {
-  animation: album-map-enter 1100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  opacity: 0;
+  transform: scale(0.92);
   transform-origin: 50% 50%;
   will-change: transform, opacity;
+  transition: opacity 1200ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.album-map-enter.album-map-visible {
+  opacity: 1;
+  transform: scale(1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .album-map-enter { animation: none; }
+  .album-map-enter {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
 @keyframes bloom {
