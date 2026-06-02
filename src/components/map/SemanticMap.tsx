@@ -352,6 +352,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     return () => cancelAnimationFrame(raf);
   }, [hoveredNode, selectedNode]);
   // ─── Zoom & pan ───────────────────────────────────────────────────────────
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const initialZoomApplied = useRef(false);
   useEffect(() => {
     if (!svgRef.current) return;
     const zoom = d3.zoom<SVGSVGElement, unknown>()
@@ -359,7 +361,19 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       .on("zoom", (event) => {
         setTransform({ x: event.transform.x, y: event.transform.y, k: event.transform.k });
       });
-    d3.select(svgRef.current).call(zoom);
+    zoomRef.current = zoom;
+    const sel = d3.select(svgRef.current);
+    sel.call(zoom);
+    // Start zoomed in at 1.35× centred on the viewport so the user lands
+    // inside the constellation rather than seeing the full circular outline.
+    // Only on first mount — not on resize.
+    if (!initialZoomApplied.current && dimensions.w && dimensions.h) {
+      const k0 = 1.35;
+      const tx = (dimensions.w - dimensions.w * k0) / 2;
+      const ty = (dimensions.h - dimensions.h * k0) / 2;
+      sel.call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(k0));
+      initialZoomApplied.current = true;
+    }
   }, [dimensions]);
   // ─── World-to-viewport mapping (adaptive layout) ──────────────────────────
   // The d3-force simulation centred nodes around (960, 540) in a 1920×1080
@@ -404,15 +418,26 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const mappedH = (bbox.yMax - bbox.yMin) * sUniform;
   const offsetX = (dimensions.w - mappedW) / 2;
   const offsetY = (dimensions.h - mappedH) / 2;
-  // World → viewport base position mapping (no zoom applied).
-  // Maps from the node bounding box to viewport with uniform scale + centring.
-  // The d3-zoom transform (translate + scale) is applied SEPARATELY by the
-  // SVG <g> and the canvas CSS wrapper — keeping them in charge of pan/zoom
-  // as before. This function only does the bbox → viewport normalisation.
-  const toVP = useCallback((wx: number, wy: number): { x: number; y: number } => ({
-    x: (wx - bbox.xMin) * sUniform + offsetX,
-    y: (wy - bbox.yMin) * sUniform + offsetY,
-  }), [bbox.xMin, bbox.yMin, sUniform, offsetX, offsetY]);
+  // World → viewport base position mapping with semantic zoom.
+  // Step 1: map from bbox to viewport with uniform scale + centring.
+  // Step 2: modulate inter-node distances around viewport centre based on
+  //   transform.k — zoom in spreads nodes apart, zoom out compacts them.
+  //   This makes the constellation feel infinite (no hard edge when zooming
+  //   out) and more detailed when zooming in (nodes separate to reveal
+  //   cultural dots between the big emotion circles).
+  //   The spread factor is sqrt(k) instead of k to keep the effect subtle —
+  //   linear k would move nodes too aggressively.
+  const vcx = dimensions.w / 2;
+  const vcy = dimensions.h / 2;
+  const spreadK = Math.sqrt(transform.k);
+  const toVP = useCallback((wx: number, wy: number): { x: number; y: number } => {
+    const bx = (wx - bbox.xMin) * sUniform + offsetX;
+    const by = (wy - bbox.yMin) * sUniform + offsetY;
+    return {
+      x: vcx + (bx - vcx) * spreadK,
+      y: vcy + (by - vcy) * spreadK,
+    };
+  }, [bbox.xMin, bbox.yMin, sUniform, offsetX, offsetY, vcx, vcy, spreadK]);
   // ─── Entry position interpolator ─────────────────────────────────────────
   // Elastic ease-out: overshoots then settles — feels organic/living.
   const elasticOut = (t: number): number => {
@@ -1245,6 +1270,54 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
             );
           })}
         </div>
+      </div>
+      {/* ─── Zoom controls (for trackpad/touch users without scroll wheel) ─── */}
+      <div className="absolute bottom-16 right-6 z-10 flex flex-col gap-1">
+        <button
+          onClick={() => {
+            if (!svgRef.current || !zoomRef.current) return;
+            const sel = d3.select(svgRef.current);
+            sel.transition().duration(300).call(zoomRef.current.scaleBy, 1.4);
+          }}
+          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
+          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          <span className="icon" style={{ fontSize: "18px" }}>add</span>
+        </button>
+        <button
+          onClick={() => {
+            if (!svgRef.current || !zoomRef.current) return;
+            const sel = d3.select(svgRef.current);
+            sel.transition().duration(300).call(zoomRef.current.scaleBy, 1 / 1.4);
+          }}
+          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
+          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
+          <span className="icon" style={{ fontSize: "18px" }}>remove</span>
+        </button>
+        <button
+          onClick={() => {
+            if (!svgRef.current || !zoomRef.current) return;
+            const sel = d3.select(svgRef.current);
+            sel.transition().duration(500).call(
+              zoomRef.current.transform,
+              d3.zoomIdentity.translate(
+                (dimensions.w - dimensions.w * 1.35) / 2,
+                (dimensions.h - dimensions.h * 1.35) / 2,
+              ).scale(1.35),
+            );
+          }}
+          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-white/10 transition-colors"
+          style={{ borderColor: "var(--album-border-strong)", fontFamily: "var(--font-technical)" }}
+          title="Reset zoom"
+          aria-label="Reset zoom"
+        >
+          <span className="icon" style={{ fontSize: "16px" }}>my_location</span>
+        </button>
       </div>
       {/* Tribe filters — 22 tribes, compact column with hover-expand labels.
           Glass background so the canvas nodes painted underneath don't bleed
