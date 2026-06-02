@@ -361,25 +361,58 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       });
     d3.select(svgRef.current).call(zoom);
   }, [dimensions]);
-  // ─── World-to-viewport scale (adaptive layout) ────────────────────────────
-  // The d3-force layout was precomputed at canonical 1920×1080 world coords.
-  // Rather than letterbox the canonical world inside the viewport (which
-  // leaves visible empty bands when the aspect ratios differ), we STRETCH
-  // node positions to fill the actual viewport on every paint.
+  // ─── World-to-viewport mapping (adaptive layout) ──────────────────────────
+  // The d3-force simulation centred nodes around (960, 540) in a 1920×1080
+  // canonical world, but the actual bounding box of node positions is
+  // smaller — nodes cluster in a region that doesn't fill the canvas. The
+  // naive sx = viewportW/worldW only stretched the coordinate space; the
+  // nodes still occupied their original fraction of it, leaving large
+  // empty regions.
   //
-  // sx, sy are the per-axis scale factors. They're applied to every node's
-  // x/y when painting the canvas, building the quadtree, rendering the SVG
-  // attention layer, and resolving link endpoints — everywhere a position
-  // is consumed. Radii stay in pixels (not scaled), so circles remain
-  // circular even when sx ≠ sy.
+  // Fix: compute the ACTUAL bounding box of node positions, add margin,
+  // then map that box to fill the viewport. This guarantees nodes spread
+  // edge-to-edge regardless of how the simulation distributed them.
   //
-  // Result: the map fills the user's window edge-to-edge regardless of
-  // aspect ratio, and adapts in real time when the window is resized.
-  // Cost: a small linear distortion of inter-node distances vs the
-  // canonical layout — acceptable because the semantic meaning ("close
-  // = related") is preserved monotonically.
-  const sx = layout && dimensions.w ? dimensions.w / layout.viewBox.w : 1;
-  const sy = layout && dimensions.h ? dimensions.h / layout.viewBox.h : 1;
+  // Semantic zoom: when the user zooms (transform.k), we modulate inter-
+  // node distances around the viewport centre. Zoom in → nodes spread
+  // apart, zoom out → they compact. This makes the constellation feel
+  // infinite rather than a bounded rectangle.
+  const PADDING = 60; // px margin from viewport edges
+  const bbox = useMemo(() => {
+    let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+    for (const n of nodes) {
+      if (n.x === undefined || n.y === undefined) continue;
+      if (n.x < xMin) xMin = n.x;
+      if (n.x > xMax) xMax = n.x;
+      if (n.y < yMin) yMin = n.y;
+      if (n.y > yMax) yMax = n.y;
+    }
+    if (!isFinite(xMin)) return { xMin: 0, xMax: 1, yMin: 0, yMax: 1 };
+    return { xMin, xMax, yMin, yMax };
+  }, [nodes]);
+  // Map node world-position → viewport position. Normalise to [0,1] within
+  // the bounding box, then scale to [PADDING, viewportDim - PADDING].
+  const sx = dimensions.w > 0 && bbox.xMax > bbox.xMin
+    ? (dimensions.w - PADDING * 2) / (bbox.xMax - bbox.xMin) : 1;
+  const sy = dimensions.h > 0 && bbox.yMax > bbox.yMin
+    ? (dimensions.h - PADDING * 2) / (bbox.yMax - bbox.yMin) : 1;
+  // Uniform scale preserves aspect ratio of the layout (no stretch).
+  // Use the smaller factor so everything fits, then centre in the
+  // dimension that has leftover space.
+  const sUniform = Math.min(sx, sy);
+  const mappedW = (bbox.xMax - bbox.xMin) * sUniform;
+  const mappedH = (bbox.yMax - bbox.yMin) * sUniform;
+  const offsetX = (dimensions.w - mappedW) / 2;
+  const offsetY = (dimensions.h - mappedH) / 2;
+  // World → viewport base position mapping (no zoom applied).
+  // Maps from the node bounding box to viewport with uniform scale + centring.
+  // The d3-zoom transform (translate + scale) is applied SEPARATELY by the
+  // SVG <g> and the canvas CSS wrapper — keeping them in charge of pan/zoom
+  // as before. This function only does the bbox → viewport normalisation.
+  const toVP = useCallback((wx: number, wy: number): { x: number; y: number } => ({
+    x: (wx - bbox.xMin) * sUniform + offsetX,
+    y: (wy - bbox.yMin) * sUniform + offsetY,
+  }), [bbox.xMin, bbox.yMin, sUniform, offsetX, offsetY]);
   // ─── Entry position interpolator ─────────────────────────────────────────
   // Elastic ease-out: overshoots then settles — feels organic/living.
   const elasticOut = (t: number): number => {
@@ -395,11 +428,12 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     let m = 0;
     for (const n of nodes) {
       if (n.x === undefined || n.y === undefined) continue;
-      const d = Math.hypot(n.x * sx - cx, n.y * sy - cy);
+      const vp = toVP(n.x, n.y);
+      const d = Math.hypot(vp.x - cx, vp.y - cy);
       if (d > m) m = d;
     }
     return m || 1;
-  }, [nodes, sx, sy, cx, cy, layout]);
+  }, [nodes, toVP, cx, cy, layout]);
   // Given a node's final position (already scaled by sx/sy), return
   // the interpolated position based on entryProgress. During the entry
   // animation, nodes start at viewport centre and fly outward with
@@ -478,14 +512,16 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       let cx = 0, cy = 0;
       // Apply viewport scale + entry animation so centroids land where nodes do.
       for (const n of group) {
-        const ep = entryPos(n.x! * sx, n.y! * sy);
+        const vp = toVP(n.x!, n.y!);
+        const ep = entryPos(vp.x, vp.y);
         cx += ep.x; cy += ep.y;
       }
       cx /= group.length; cy /= group.length;
       // Approximate radius: distance to farthest member
       let maxDist = 0;
       for (const n of group) {
-        const ep = entryPos(n.x! * sx, n.y! * sy);
+        const vp = toVP(n.x!, n.y!);
+        const ep = entryPos(vp.x, vp.y);
         const d = Math.hypot(ep.x - cx, ep.y - cy);
         if (d > maxDist) maxDist = d;
       }
@@ -499,7 +535,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       });
     }
     return centroids;
-  }, [nodes, sx, sy, entryPos]);
+  }, [nodes, toVP, entryPos]);
   // Clan-mates: emotions in the same clan as the pivot
   const clanMateIds = useMemo(() => {
     if (!pivot) return new Set<string>();
@@ -586,10 +622,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
   const nodeQuadtree = useMemo(() => {
     return d3
       .quadtree<MapNode>()
-      .x((d) => (d.x ?? 0) * sx)
-      .y((d) => (d.y ?? 0) * sy)
+      .x((d) => toVP(d.x ?? 0, d.y ?? 0).x)
+      .y((d) => toVP(d.x ?? 0, d.y ?? 0).y)
       .addAll(nodes.filter((n) => n.x !== undefined && n.y !== undefined));
-  }, [nodes, sx, sy]);
+  }, [nodes, toVP]);
   // Visible node ids: query the quadtree for the world-space AABB that
   // maps to the current viewport (inverse of the d3-zoom transform), with
   // a generous margin so labels/halos near the edge don't clip in.
@@ -611,8 +647,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
           node as unknown as { data: MapNode; next?: { data: MapNode; next?: unknown } };
         do {
           const d = leaf.data;
-          const dx = (d.x ?? 0) * sx;
-          const dy = (d.y ?? 0) * sy;
+          const { x: dx, y: dy } = toVP(d.x ?? 0, d.y ?? 0);
           if (dx >= x0 && dx <= x3 && dy >= y0 && dy <= y3) ids.add(d.id);
           leaf = leaf.next as typeof leaf;
         } while (leaf);
@@ -634,10 +669,11 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const n = nodes.find((x) => x.id === pivot);
     if (!n || !n.x || !n.y) return null;
     const off = nodeOffsets.get(n.id);
-    const x = (n.x * sx + (off?.dx ?? 0)) * transform.k + transform.x;
-    const y = (n.y * sy + (off?.dy ?? 0)) * transform.k + transform.y;
+    const vp = toVP(n.x, n.y);
+    const x = (vp.x + (off?.dx ?? 0)) * transform.k + transform.x;
+    const y = (vp.y + (off?.dy ?? 0)) * transform.k + transform.y;
     return { x, y };
-  }, [pivot, nodes, nodeOffsets, transform, sx, sy]);
+  }, [pivot, nodes, nodeOffsets, transform, toVP]);
   // ─── Canvas paint: all AMBIENT nodes in one pass ──────────────────────────
   // Replaces 3 SVG layers (deco/hit/labels) × ~1300 nodes ≈ 4000 elements
   // with a single canvas paint of a few thousand 2D ops. Repaints only when
@@ -687,7 +723,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       const fillColor = node.color ?? "#888";
       // Scaled position — every node is mapped into viewport space,
       // then interpolated through the entry animation if still running.
-      const { x: px, y: py } = entryPos(node.x * sx, node.y * sy);
+      const vp = toVP(node.x, node.y);
+      const { x: px, y: py } = entryPos(vp.x, vp.y);
       // Body fill (cultural & emotion, not color)
       if (!isColor) {
         ctx.beginPath();
@@ -722,7 +759,7 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
       void inkMuted;
     }
     ctx.globalAlpha = 1;
-  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, sx, sy, dimensions.w, dimensions.h, entryPos]);
+  }, [nodes, layout, attentionSet, activeFilter, activeTribe, pivot, clanMateIds, echoIds, isNodeFiltered, toVP, dimensions.w, dimensions.h, entryPos]);
   if (!dimensions.w) return null;
   // Helper: resolve a link's endpoints + apply personality offsets
   const resolveLink = (l: MapLink, idx: number) => {
@@ -733,8 +770,10 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
     const sOff = sId ? nodeOffsets.get(sId) : undefined;
     const tOff = tId ? nodeOffsets.get(tId) : undefined;
     // Endpoints scaled into viewport space + entry animation.
-    const sEp = entryPos((s?.x ?? 0) * sx, (s?.y ?? 0) * sy);
-    const tEp = entryPos((t?.x ?? 0) * sx, (t?.y ?? 0) * sy);
+    const sVp = toVP(s?.x ?? 0, s?.y ?? 0);
+    const tVp = toVP(t?.x ?? 0, t?.y ?? 0);
+    const sEp = entryPos(sVp.x, sVp.y);
+    const tEp = entryPos(tVp.x, tVp.y);
     return {
       ...l,
       sId,
@@ -1022,7 +1061,8 @@ export function SemanticMap({ layout }: SemanticMapProps = {}) {
                 // Position scaled into viewport space then interpolated through
                 // the entry animation. Radius stays in px so circles remain
                 // circular regardless of sx vs sy.
-                const ep = entryPos(node.x * sx, node.y * sy);
+                const vp = toVP(node.x, node.y);
+                const ep = entryPos(vp.x, vp.y);
                 const x = ep.x + off.dx;
                 const y = ep.y + off.dy;
                 const r = nodeRadius(node) * off.scale;
