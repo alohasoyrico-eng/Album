@@ -261,8 +261,16 @@ export function SemanticMap() {
   // The simulation uses CURATED links for structural pull (these are the
   // canonical Marina-era relationships). EMERGENT links are rendered on top
   // as the resonance-engine's inferred neighborhood.
+  const simRanRef = useRef(false);
   useEffect(() => {
     if (!dimensions.w) return;
+    // Only run the simulation ONCE per session. d3-force with ~1300 nodes
+    // takes ~300 ticks; the old code did setNodes() per tick = ~300
+    // React re-renders of ~4000 SVG elements = multi-second main thread
+    // block. Instead: run the simulation synchronously to completion in
+    // a single JS task, then commit the final positions in ONE setState.
+    if (simRanRef.current) return;
+    simRanRef.current = true;
     const { nodes: rawNodes, curatedLinks: rawCurated, emergentLinks: rawEmergent } = buildMapData();
     const sim = d3
       .forceSimulation<MapNode, MapLink>(rawNodes)
@@ -275,19 +283,19 @@ export function SemanticMap() {
       .force("center", d3.forceCenter(dimensions.w / 2, dimensions.h / 2).strength(0.05))
       .force("cluster", clusterForce(rawNodes, dimensions.w, dimensions.h))
       .force("clan", clanForce(rawNodes))
-      // ─── Cultural entities orbit the emotions they actually resonate with
       .force("resonance-gravity", resonanceGravityForce(rawNodes))
       .alphaDecay(0.015)
-      .velocityDecay(0.35);
-    sim.on("tick", () => {
-      setNodes([...rawNodes]);
-      setLinks([...rawCurated]);
-    });
-    simulationRef.current = sim;
-    setNodes(rawNodes);
-    setLinks(rawCurated as MapLink[]);
+      .velocityDecay(0.35)
+      .stop(); // don't auto-start — we tick manually below
+    // Run 300 ticks synchronously. On a modern device this takes ~50-100ms
+    // for 1300 nodes — fast enough for a single blocking task, far better
+    // than 300 React re-renders.
+    for (let i = 0; i < 300; i++) sim.tick();
+    // Single commit of final positions.
+    setNodes([...rawNodes]);
+    setLinks([...rawCurated]);
     setEmergentLinks(rawEmergent as MapLink[]);
-    return () => { sim.stop(); };
+    simulationRef.current = sim;
   }, [dimensions]);
   // ─── Personality animation loop (visual layer) ────────────────────────────
   // Only ticks when there is a pivot (hovered/selected). Without a pivot,
