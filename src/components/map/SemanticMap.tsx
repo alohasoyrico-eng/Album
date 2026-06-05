@@ -286,6 +286,19 @@ export function SemanticMap() {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [hoverStart, setHoverStart] = useState<number>(0);
   const [animTick, setAnimTick] = useState(0); // drives personality re-render
+  // ─── Clear selection on mount/unmount ──────────────────────────────────────
+  // When navigating away from the map (to /emotion/[id] etc.), the
+  // NodeFullPreview intentionally does NOT call onClose() to avoid a
+  // flash-to-map. But that leaves selectedNode set in Zustand. On remount
+  // (user navigates back), we must clear it so the card doesn't reappear.
+  useEffect(() => {
+    setSelectedNode(null);
+    setHoveredNode(null);
+    return () => {
+      setSelectedNode(null);
+      setHoveredNode(null);
+    };
+  }, [setSelectedNode, setHoveredNode]);
   // ─── Measure container ────────────────────────────────────────────────────
   useEffect(() => {
     const update = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
