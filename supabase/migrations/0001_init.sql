@@ -32,10 +32,12 @@ create table if not exists public.sessions (
 
 alter table public.sessions enable row level security;
 
+drop policy if exists "sessions are visible to anyone" on public.sessions;
 create policy "sessions are visible to anyone"
   on public.sessions for select
   using (true);
 
+drop policy if exists "anyone can insert a session" on public.sessions;
 create policy "anyone can insert a session"
   on public.sessions for insert
   with check (true);
@@ -57,16 +59,18 @@ create table if not exists public.claims (
   created_at    timestamptz not null default now()
 );
 
-create index claims_entity        on public.claims (entity_kind, entity_id);
-create index claims_entity_field  on public.claims (entity_kind, entity_id, field_path);
-create index claims_lens          on public.claims (lens) where lens is not null;
+create index if not exists claims_entity        on public.claims (entity_kind, entity_id);
+create index if not exists claims_entity_field  on public.claims (entity_kind, entity_id, field_path);
+create index if not exists claims_lens          on public.claims (lens) where lens is not null;
 
 alter table public.claims enable row level security;
 
+drop policy if exists "claims are public" on public.claims;
 create policy "claims are public"
   on public.claims for select
   using (true);
 
+drop policy if exists "anyone with a session can post a claim" on public.claims;
 create policy "anyone with a session can post a claim"
   on public.claims for insert
   with check (
@@ -86,23 +90,27 @@ create table if not exists public.claim_votes (
   unique (claim_id, voter_id)                          -- one vote per session per claim
 );
 
-create index claim_votes_by_claim on public.claim_votes (claim_id);
+create index if not exists claim_votes_by_claim on public.claim_votes (claim_id);
 
 alter table public.claim_votes enable row level security;
 
+drop policy if exists "votes are public" on public.claim_votes;
 create policy "votes are public"
   on public.claim_votes for select
   using (true);
 
+drop policy if exists "anyone can vote" on public.claim_votes;
 create policy "anyone can vote"
   on public.claim_votes for insert
   with check (length(voter_id) between 8 and 64);
 
+drop policy if exists "voters can change their mind" on public.claim_votes;
 create policy "voters can change their mind"
   on public.claim_votes for update
   using (true)
   with check (length(voter_id) between 8 and 64);
 
+drop policy if exists "voters can retract" on public.claim_votes;
 create policy "voters can retract"
   on public.claim_votes for delete
   using (true);
@@ -130,5 +138,7 @@ create trigger claim_votes_aggregate
   for each row execute function public._claim_vote_aggregate();
 
 -- ─── Realtime: publish changes for live updates ───────────────────────
-alter publication supabase_realtime add table public.claims;
-alter publication supabase_realtime add table public.claim_votes;
+-- Note: If running for the first time, uncomment below. On re-runs, these
+-- already exist so we skip them to avoid "already member" errors.
+-- alter publication supabase_realtime add table public.claims;
+-- alter publication supabase_realtime add table public.claim_votes;

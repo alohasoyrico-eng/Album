@@ -1,34 +1,32 @@
+export const runtime = 'edge';
+
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { CLANS, CLAN_MAP } from "@/data/ontology/clans";
 import { ClanView } from "@/components/editorial/ClanView";
 import { buildTypeSetUrls } from "@/lib/fontStylesheet";
 import { getClanPageData } from "@/lib/server/clanPageData";
+import { fetchClan, fetchAllClanIds } from "@/lib/server/supabase-queries";
 
 interface Params { id: string }
 
-export function generateStaticParams() {
-  return CLANS.map((c) => ({ id: c.id }));
-}
-
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
-  const clan = CLAN_MAP.get(id);
+  const clan = await fetchClan(id);
   if (!clan) return { title: "Clan no encontrado — Álbum" };
   return {
     title: `${clan.name} — Clan emocional — Álbum`,
-    description: clan.description,
+    description: clan.description || undefined,
   };
 }
 
 export default async function ClanPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
-  // All catalogue lookups + visual derivations on the server. ClanView
-  // ships zero seed data + zero resonance-engine code to the client.
+  const clan = await fetchClan(id);
+  if (!clan) notFound();
+
   const pageData = getClanPageData(id);
   if (!pageData) notFound();
 
-  // Per-page font loading from the clan's pre-derived typeSet.
   const { primary: titleFontUrl, supporting: bodyFontsUrl } =
     buildTypeSetUrls(pageData.presentation.typeSet);
 

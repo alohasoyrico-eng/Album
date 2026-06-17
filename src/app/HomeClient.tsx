@@ -31,7 +31,13 @@ interface RotatingSuggestion {
   accent: string;
 }
 
-export function HomeClient() {
+import type { MapLayoutPayload } from "@/lib/server/mapLayout";
+
+interface HomeClientProps {
+  layout: MapLayoutPayload;
+}
+
+export function HomeClient({ layout }: HomeClientProps) {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -90,7 +96,7 @@ export function HomeClient() {
   return (
     <div className="relative min-h-screen bg-atmospheric overflow-hidden">
       <div className="relative w-full hidden md:block" style={{ height: "100vh" }}>
-        <SemanticMap />
+        <SemanticMap layout={layout} />
       </div>
       <div className="md:hidden">
         <MobileTribesGrid />

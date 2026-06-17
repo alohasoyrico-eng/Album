@@ -2,28 +2,86 @@
 /**
  * Search palette — Cmd/Ctrl+K opens, Esc closes, ↑/↓ navigate, Enter selects.
  *
- * Indexes every entity in Álbum (emotions, clans, tribes, colours, fonts
- * and the ~1100 cultural items). Lightweight substring + word-prefix
- * ranking; fast enough for keystroke matching without a fuzzy library.
+ * Fulltext search via Supabase. Lazy-loads results when the palette opens.
+ * Falls back to local recent suggestions if Supabase is unavailable.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { searchAll, recentSuggestions, type SearchRecord, type SearchKind } from "@/lib/searchIndex";
+import { searchSupabase, type SearchResult } from "@/lib/supabaseSearch";
+import { recentSuggestions, type SearchRecord } from "@/lib/searchIndex";
 import { ICON } from "@/lib/icons";
 interface Props {
   open: boolean;
   onClose: () => void;
 }
+interface UnifiedResult {
+  id: string;
+  kind: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  accent?: string;
+}
+
+// Icon mapping for search result kinds
+const SEARCH_ICONS: Record<string, string> = {
+  emotion: "heart",
+  clan: "shield",
+  tribe: "groups",
+  color: "palette",
+  typography: "text_fields",
+  // Fallback for old local search results
+  artwork: "image",
+  music: "music_note",
+  film: "movie",
+  poem: "auto_stories",
+  sculpture: "public",
+  dance: "theater_comedy",
+  architecture: "architecture",
+  photography: "photo_camera",
+  literature: "library_books",
+  ritual: "celebration",
+  theater: "theater_masks",
+};
+
 export function SearchPalette({ open, onClose }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const [results, setResults] = useState<UnifiedResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const results = useMemo<SearchRecord[]>(
-    () => (query.trim().length === 0 ? recentSuggestions() : searchAll(query, 50)),
-    [query],
-  );
+
+  // Fetch results from Supabase on query change
+  useEffect(() => {
+    const loadResults = async () => {
+      setIsLoading(true);
+      const trimmed = query.trim();
+
+      if (trimmed.length === 0) {
+        // Show recent suggestions
+        setResults(recentSuggestions() as UnifiedResult[]);
+      } else {
+        // Query Supabase fulltext
+        const searchResults = await searchSupabase(trimmed, 50);
+        setResults(
+          searchResults.map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            title: r.title,
+            subtitle: r.subtitle,
+            href: r.href,
+            accent: r.accent,
+          }))
+        );
+      }
+      setIsLoading(false);
+    };
+
+    loadResults();
+  }, [query]);
+
   // Reset cursor when results change
   useEffect(() => { setCursor(0); }, [results]);
   // Focus input on open
@@ -36,7 +94,7 @@ export function SearchPalette({ open, onClose }: Props) {
     }
   }, [open]);
   const select = useCallback(
-    (rec: SearchRecord) => {
+    (rec: UnifiedResult) => {
       onClose();
       if (rec.href && rec.href !== "#") router.push(rec.href);
     },
@@ -137,7 +195,7 @@ export function SearchPalette({ open, onClose }: Props) {
                         color: rec.accent ?? "var(--album-ink-muted)",
                       }}
 >
-                      {ICON[rec.kind]}
+                      {SEARCH_ICONS[rec.kind] || "circle"}
                     </span>
                     <div className="flex-1 min-w-0">
                       <p
